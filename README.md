@@ -37,12 +37,6 @@ The platform provisions an Amazon EKS cluster inside a custom VPC, deploys a con
 * **End-to-end automation:** Infrastructure, cluster access, namespaces, applications, monitoring, and alerting are all declaratively managed.
 * **Rebuild-safe:** Running `terraform destroy` followed by `terraform apply` restores the entire platform without manual intervention.
 * **Real-world observability:** Metrics scraping, dashboards, and alerts are implemented using industry-standard tools and patterns.
-* **Interview-ready design:** Clear separation of concerns, least-privilege IAM, and Kubernetes-native primitives.
-
-**The project is structured in phases:**
-
-* **Phase 1:** Focuses on infrastructure, EKS provisioning, RBAC, and application deployment.
-* **Phase 2:** Adds Kubernetes-native observability with Prometheus, Grafana, Alertmanager, dashboards, and alert rules.
 
 This repository is intentionally designed to reflect how observability platforms are built and managed in real production environments.
 
@@ -810,6 +804,7 @@ See the LICENSE file for full license text.
 **GitHub:** https://github.com/githubabhay2003  
 
 **LinkedIn:** https://www.linkedin.com/in/abhay-kumar-saini-571891264/
+
 
 
 
