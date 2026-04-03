@@ -32,7 +32,5 @@ resource "kubernetes_manifest" "fastapi_servicemonitor" {
     }
   }
 
-  depends_on = [
-    helm_release.kube_prometheus_stack
-  ]
+  depends_on = []
 }
