@@ -44,3 +44,6 @@ jobs:
           aws eks update-kubeconfig \
             --region us-east-1 \
             --name eks-observability-cluster
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
