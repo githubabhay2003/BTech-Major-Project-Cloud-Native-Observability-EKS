@@ -9,6 +9,7 @@ module "network" {
 module "iam" {
   source       = "./modules/iam"
   project_name = var.project_name
+  github_oidc_provider_arn = aws_iam_openid_connect_provider.github.arn
 }
 
 module "eks" {
