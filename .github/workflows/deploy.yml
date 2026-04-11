@@ -23,3 +23,17 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::797671034493:role/eks-observability-github-actions-role
           aws-region: us-east-1
+          - name: Login to ECR
+            uses: aws-actions/amazon-ecr-login@v2
+
+          - name: Build Docker image
+            run: |
+              docker build -t fastapi-app ./app
+
+          - name: Tag Docker image
+            run: |
+              docker tag fastapi-app:latest 797671034493.dkr.ecr.us-east-1.amazonaws.com/eks-observability-fastapi:latest
+
+          - name: Push Docker image to ECR
+            run: |
+              docker push 797671034493.dkr.ecr.us-east-1.amazonaws.com/eks-observability-fastapi:latest
