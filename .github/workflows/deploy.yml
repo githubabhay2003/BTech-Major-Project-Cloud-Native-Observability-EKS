@@ -50,7 +50,7 @@ jobs:
 
       - name: Deploy using Helm
         run: |
-          helm upgrade --install fastapi-app ./helm \
+          helm upgrade --install fastapi-app ./helm/fastapi \
             --namespace default \
             --set image.repository=797671034493.dkr.ecr.us-east-1.amazonaws.com/eks-observability-fastapi \
             --set image.tag=latest
