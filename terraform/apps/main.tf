@@ -25,3 +25,7 @@ module "fastapi_app" {
     module.observability
   ]
 }
+
+module "ingress_nginx" {
+  source = "./modules/ingress-nginx"
+}

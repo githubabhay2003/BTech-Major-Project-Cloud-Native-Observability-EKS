@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana-proxy
+  namespace: default
+spec:
+  type: ExternalName
+  externalName: kube-prometheus-stack-grafana.monitoring.svc.cluster.local
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-proxy
+  namespace: default
+spec:
+  type: ExternalName
+  externalName: kube-prometheus-stack-prometheus.monitoring.svc.cluster.local
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager-proxy
+  namespace: default
+spec:
+  type: ExternalName
+  externalName: kube-prometheus-stack-alertmanager.monitoring.svc.cluster.local
