@@ -1,17 +1,25 @@
 # Terraform
 .terraform/
 *.tfstate
-*.tfstate.backup
-*.tfvars
+*.tfstate.*
+crash.log
 
 # Kubernetes
 kubeconfig
 *.kubeconfig
 
-# OS / IDE
+# Python
+__pycache__/
+*.pyc
+
+# Node (future website)
+node_modules/
+
+# OS / Editor
 .DS_Store
+Thumbs.db
 .vscode/
 .idea/
 
-# Logs
-*.log
+# Env files
+.env
