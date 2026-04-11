@@ -44,19 +44,32 @@ resource "helm_release" "kube_prometheus_stack" {
     }
 
     alertmanager = {
+      enabled = true
+
       config = {
         global = {}
 
         route = {
-          receiver = "null-receiver"
-          group_by = ["alertname", "severity"]
-          group_wait = "30s"
-          group_interval = "5m"
+          receiver        = "null-receiver"
+          group_by        = ["alertname"]
+          group_wait      = "30s"
+          group_interval  = "5m"
           repeat_interval = "4h"
         }
 
         receivers = [
-          { name = "null-receiver" }
+          {
+              name = "null"
+            },
+          {
+            name = "null-receiver"
+
+            webhook_configs = [
+              {
+                url = "http://127.0.0.1:5001/"
+              }
+            ]
+          }
         ]
       }
     }

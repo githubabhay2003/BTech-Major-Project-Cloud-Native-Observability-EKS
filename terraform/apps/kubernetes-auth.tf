@@ -7,7 +7,7 @@ resource "kubernetes_config_map_v1_data" "aws_auth" {
   data = {
     mapRoles = yamlencode([
       {
-        rolearn  = aws_iam_role.eks_node.arn
+        rolearn = data.terraform_remote_state.infra.outputs.eks_node_role_arn
         username = "system:node:{{EC2PrivateDNSName}}"
         groups = [
           "system:bootstrappers",
@@ -15,7 +15,7 @@ resource "kubernetes_config_map_v1_data" "aws_auth" {
         ]
       },
       {
-        rolearn  = aws_iam_role.bastion.arn
+        rolearn = data.terraform_remote_state.infra.outputs.bastion_role_arn
         username = "bastion"
         groups   = ["system:masters"]
       }
@@ -24,7 +24,4 @@ resource "kubernetes_config_map_v1_data" "aws_auth" {
 
   force = true
 
-  depends_on = [
-    aws_eks_node_group.this
-  ]
 }

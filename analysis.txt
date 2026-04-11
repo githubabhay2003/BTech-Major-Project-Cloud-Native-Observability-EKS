@@ -1,0 +1,1177 @@
+﻿
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\app\Dockerfile =====
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY main.py .
+
+EXPOSE 8000
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\app\main.py =====
+
+from fastapi import FastAPI
+from prometheus_fastapi_instrumentator import Instrumentator
+
+app = FastAPI()
+
+@app.get("/")
+def root():
+    return {"message": "FastAPI Observability App"}
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+Instrumentator().instrument(app).expose(app)
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\app\requirements.txt =====
+
+fastapi
+uvicorn
+prometheus-fastapi-instrumentator
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\helm\fastapi\Chart.yaml =====
+
+apiVersion: v2
+name: fastapi
+description: FastAPI observability app
+type: application
+version: 0.1.0
+appVersion: "1.0"
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\helm\fastapi\templates\deployment.yaml =====
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "{{ .Release.Name }}"
+  labels:
+    app: "{{ .Values.labels.app }}"
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: "{{ .Values.labels.app }}"
+  template:
+    metadata:
+      labels:
+        app: "{{ .Values.labels.app }}"
+    spec:
+      containers:
+        - name: fastapi
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.targetPort }}
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.service.targetPort }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.service.targetPort }}
+            initialDelaySeconds: 10
+            periodSeconds: 20
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\helm\fastapi\templates\service.yaml =====
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: "{{ .Release.Name }}"
+  labels:
+    app: "{{ .Values.labels.app }}"
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    app: "{{ .Values.labels.app }}"
+  ports:
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.targetPort }}
+      protocol: TCP
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\helm\fastapi\values.yaml =====
+
+replicaCount: 2
+
+image:
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8000
+
+resources: {}
+
+labels:
+  app: fastapi
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\helm\kube-prometheus-stack\values.yaml =====
+
+grafana:
+  enabled: true
+  adminPassword: prom-operator
+  service:
+    type: ClusterIP
+  defaultDashboardsEnabled: true
+
+prometheus:
+  prometheusSpec:
+    replicas: 1
+    retention: 7d
+    serviceMonitorSelectorNilUsesHelmValues: false
+
+alertmanager:
+  enabled: true
+
+kubeStateMetrics:
+  enabled: true
+
+nodeExporter:
+  enabled: true
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\terraform\apps\kubernetes-auth.tf =====
+
+resource "kubernetes_config_map_v1_data" "aws_auth" {
+  metadata {
+    name      = "aws-auth"
+    namespace = "kube-system"
+  }
+
+  data = {
+    mapRoles = yamlencode([
+      {
+        rolearn = data.terraform_remote_state.infra.outputs.eks_node_role_arn
+        username = "system:node:{{EC2PrivateDNSName}}"
+        groups = [
+          "system:bootstrappers",
+          "system:nodes"
+        ]
+      },
+      {
+        rolearn = data.terraform_remote_state.infra.outputs.bastion_role_arn
+        username = "bastion"
+        groups   = ["system:masters"]
+      }
+    ])
+  }
+
+  force = true
+
+}
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\terraform\apps\main.tf =====
+
+module "observability" {
+  source      = "./modules/observability"
+  environment = "dev"
+
+  providers = {
+    kubernetes = kubernetes
+    helm       = helm
+  }
+}
+
+module "fastapi_app" {
+  source = "./modules/fastapi-app"
+
+  environment             = "dev"
+  monitoring_namespace    = module.observability.monitoring_namespace
+  app_namespace           = "observability"
+  prometheus_release_name = module.observability.prometheus_release_name
+  ecr_repository_url = data.terraform_remote_state.infra.outputs.ecr_repository_url
+  providers = {
+    kubernetes = kubernetes
+    helm       = helm
+  }
+
+  depends_on = [
+    module.observability
+  ]
+}
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\terraform\apps\modules\fastapi-app\fastapi-alerts.tf =====
+
+resource "kubernetes_manifest" "fastapi_alerts" {
+  manifest = {
+    apiVersion = "monitoring.coreos.com/v1"
+    kind       = "PrometheusRule"
+
+    metadata = {
+      name      = "fastapi-alerts"
+      namespace = "monitoring"
+      labels = {
+        release = "kube-prometheus-stack"
+      }
+    }
+
+    spec = {
+      groups = [
+        {
+          name = "fastapi.rules"
+          rules = [
+
+            # ðŸ”´ High 5xx error rate
+            {
+              alert = "FastAPIHighErrorRate"
+              expr  = <<-EOT
+                sum(rate(http_requests_total{status=~"5.."}[2m])) > 0
+              EOT
+              for = "1m"
+              labels = {
+                severity = "critical"
+              }
+              annotations = {
+                summary = "FastAPI is returning 5xx errors"
+                description = "FastAPI has elevated 5xx responses for over 1 minute"
+              }
+            },
+
+            # ðŸŸ  High latency P95
+            {
+              alert = "FastAPIHighLatency"
+              expr  = <<-EOT
+                histogram_quantile(
+                  0.95,
+                  sum(rate(http_request_duration_seconds_bucket[5m])) by (le)
+                ) > 1
+              EOT
+              for = "2m"
+              labels = {
+                severity = "warning"
+              }
+              annotations = {
+                summary = "FastAPI latency is high (P95)"
+                description = "95th percentile latency > 1s for 2 minutes"
+              }
+            },
+
+            # ðŸ”´ FastAPI pod down
+            {
+              alert = "FastAPIPodDown"
+              expr  = <<-EOT
+                absent(up{job="fastapi"})
+              EOT
+              for = "30s"
+              labels = {
+                severity = "critical"
+              }
+              annotations = {
+                summary = "FastAPI is down"
+                description = "No FastAPI pods are reachable"
+
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\terraform\apps\modules\fastapi-app\helm-fastapi.tf =====
+
+resource "helm_release" "fastapi" {
+  name      = "fastapi"
+  namespace = var.app_namespace
+  chart     = abspath("${path.root}/../../helm/fastapi")
+
+  values = [
+    yamlencode({
+      image = {
+        repository = var.ecr_repository_url
+        tag        = "latest"
+      }
+    })
+  ]
+}
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\terraform\apps\modules\fastapi-app\kubernetes-namespaces.tf =====
+
+resource "kubernetes_namespace_v1" "observability" {
+  metadata {
+    name = "observability"
+    labels = {
+      environment = var.environment
+      managed_by  = "terraform"
+    }
+  }
+}
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\terraform\apps\modules\fastapi-app\providers.tf =====
+
+terraform {
+  required_providers {
+    kubernetes = {
+      source = "hashicorp/kubernetes"
+    }
+    helm = {
+      source = "hashicorp/helm"
+    }
+  }
+}
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\terraform\apps\modules\fastapi-app\servicemonitor-fastapi.tf =====
+
+resource "kubernetes_manifest" "fastapi_servicemonitor" {
+  manifest = {
+    apiVersion = "monitoring.coreos.com/v1"
+    kind       = "ServiceMonitor"
+
+    metadata = {
+      name      = "fastapi"
+      namespace = "monitoring"
+      labels = {
+        release = "kube-prometheus-stack"
+      }
+    }
+
+    spec = {
+      selector = {
+        matchLabels = {
+          app = "fastapi"
+        }
+      }
+
+      namespaceSelector = {
+        matchNames = ["observability"]
+      }
+
+      endpoints = [
+        {
+          port     = "http"
+          path     = "/metrics"
+          interval = "15s"
+        }
+      ]
+    }
+  }
+}
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\terraform\apps\modules\fastapi-app\variables.tf =====
+
+variable "monitoring_namespace" {
+  type = string
+}
+
+variable "prometheus_release_name" {
+  type = string
+}
+
+variable "environment" {
+  type = string
+}
+variable "app_namespace" {
+  type = string
+}
+variable "ecr_repository_url" {
+  type = string
+}
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\terraform\apps\modules\observability\grafana\dashboards\fastapi-golden-signals.json =====
+
+{
+  "id": null,
+  "uid": "fastapi-golden-signals",
+  "title": "FastAPI â€“ Golden Signals",
+  "tags": ["fastapi", "observability", "golden-signals"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "10s",
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Request Rate (RPS)",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total[1m]))",
+          "legendFormat": "requests/sec"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Error Rate (5xx)",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{status=~\"5..\"}[1m]))",
+          "legendFormat": "5xx errors/sec"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Latency P95",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p95 latency"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Latency P99",
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p99 latency"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "FastAPI CPU Usage",
+      "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum(rate(container_cpu_usage_seconds_total{container=\"fastapi\"}[5m]))",
+          "legendFormat": "CPU cores"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "FastAPI Memory Usage",
+      "gridPos": { "x": 12, "y": 16, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum(container_memory_working_set_bytes{container=\"fastapi\"}) / 1024 / 1024",
+          "legendFormat": "Memory (MB)"
+        }
+      ]
+    }
+  ],
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": []
+  }
+}
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\terraform\apps\modules\observability\grafana\grafana-dashboards.tf =====
+
+resource "kubernetes_config_map_v1" "grafana_fastapi_dashboard" {
+  metadata {
+    name      = "grafana-fastapi-dashboard"
+    namespace = "monitoring"
+    labels = {
+      grafana_dashboard = "1"
+    }
+  }
+
+  data = {
+    "fastapi-golden-signals.json" = file("${path.module}/grafana/dashboards/fastapi-golden-signals.json")
+  }
+}
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\terraform\apps\modules\observability\helm-kube-prometheus.tf =====
+
+resource "helm_release" "kube_prometheus_stack" {
+  name       = "kube-prometheus-stack"
+  namespace  = "monitoring"
+  repository = "https://prometheus-community.github.io/helm-charts"
+  chart      = "kube-prometheus-stack"
+  version    = "81.2.2"
+  depends_on = [
+    kubernetes_namespace_v1.monitoring
+  ]
+
+
+  values = [yamlencode({
+
+    grafana = {
+      adminUser     = "admin"
+      adminPassword = "prom-operator"
+
+      sidecar = {
+        dashboards = {
+          enabled           = true
+          label             = "grafana_dashboard"
+          folder            = "/var/lib/grafana/dashboards/default"
+          defaultFolderName = "default"
+          searchNamespace   = "ALL"
+        }
+      }
+
+      dashboardProviders = {
+        "dashboardproviders.yaml" = {
+          apiVersion = 1
+          providers = [{
+            name            = "default"
+            orgId           = 1
+            folder          = ""
+            type            = "file"
+            disableDeletion = false
+            editable        = true
+            options = {
+              path = "/var/lib/grafana/dashboards/default"
+            }
+          }]
+        }
+      }
+    }
+
+    alertmanager = {
+      enabled = true
+
+      config = {
+        global = {}
+
+        route = {
+          receiver        = "null-receiver"
+          group_by        = ["alertname"]
+          group_wait      = "30s"
+          group_interval  = "5m"
+          repeat_interval = "4h"
+        }
+
+        receivers = [
+          {
+              name = "null"
+            },
+          {
+            name = "null-receiver"
+
+            webhook_configs = [
+              {
+                url = "http://127.0.0.1:5001/"
+              }
+            ]
+          }
+        ]
+      }
+    }
+
+  })]
+}
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\terraform\apps\modules\observability\kubernetes-monitoring-namespace.tf =====
+
+resource "kubernetes_namespace_v1" "monitoring" {
+  metadata {
+    name = "monitoring"
+
+    labels = {
+      environment = var.environment
+      managed_by  = "terraform"
+    }
+  }
+}
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\terraform\apps\modules\observability\outputs.tf =====
+
+output "monitoring_namespace" {
+  value = kubernetes_namespace_v1.monitoring.metadata[0].name
+}
+
+output "prometheus_release_name" {
+  value = helm_release.kube_prometheus_stack.name
+}
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\terraform\apps\modules\observability\providers.tf =====
+
+terraform {
+  required_providers {
+    kubernetes = {
+      source = "hashicorp/kubernetes"
+    }
+    helm = {
+      source = "hashicorp/helm"
+    }
+  }
+}
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\terraform\apps\modules\observability\variables.tf =====
+
+variable "environment" {
+  type = string
+}
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\terraform\apps\providers.tf =====
+
+provider "aws" {
+  region = "us-east-1"
+}
+
+data "aws_eks_cluster" "this" {
+  name = data.terraform_remote_state.infra.outputs.eks_cluster_name
+}
+
+data "aws_eks_cluster_auth" "this" {
+  name = data.terraform_remote_state.infra.outputs.eks_cluster_name
+}
+
+provider "kubernetes" {
+  host                   = data.aws_eks_cluster.this.endpoint
+  cluster_ca_certificate = base64decode(data.aws_eks_cluster.this.certificate_authority[0].data)
+  token                  = data.aws_eks_cluster_auth.this.token
+}
+
+provider "helm" {
+  kubernetes = {
+    host                   = data.aws_eks_cluster.this.endpoint
+    cluster_ca_certificate = base64decode(data.aws_eks_cluster.this.certificate_authority[0].data)
+    token                  = data.aws_eks_cluster_auth.this.token
+  }
+}
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\terraform\apps\remote-state.tf =====
+
+data "terraform_remote_state" "infra" {
+  backend = "local"
+
+  config = {
+    path = "../infra/terraform.tfstate"
+  }
+}
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\terraform\infra\main.tf =====
+
+data "aws_availability_zones" "available" {}
+
+module "network" {
+  source       = "./modules/network"
+  project_name = var.project_name
+  environment  = var.environment
+}
+
+module "iam" {
+  source       = "./modules/iam"
+  project_name = var.project_name
+}
+
+module "eks" {
+  source = "./modules/eks"
+
+  project_name       = var.project_name
+  cluster_role_arn   = module.iam.eks_cluster_role_arn
+  node_role_arn      = module.iam.eks_node_role_arn
+  private_subnet_ids = module.network.private_subnet_ids
+
+  depends_on = [module.iam]
+}
+
+module "bastion" {
+  source           = "./modules/bastion"
+  project_name     = var.project_name
+  vpc_id           = module.network.vpc_id
+  public_subnet_id = module.network.public_subnet_ids[0]
+}
+
+module "ecr" {
+  source       = "./modules/ecr"
+  project_name = var.project_name
+}
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\terraform\infra\modules\bastion\main.tf =====
+
+resource "aws_iam_role" "bastion" {
+  name = "${var.project_name}-bastion-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = {
+        Service = "ec2.amazonaws.com"
+      }
+      Action = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "bastion_eks_describe" {
+  name = "${var.project_name}-bastion-eks-describe"
+  role = aws_iam_role.bastion.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "eks:DescribeCluster"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+
+resource "aws_iam_role_policy_attachment" "bastion_eks_access" {
+  role       = aws_iam_role.bastion.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
+}
+
+resource "aws_iam_instance_profile" "bastion" {
+  name = "${var.project_name}-bastion-profile"
+  role = aws_iam_role.bastion.name
+}
+
+resource "aws_security_group" "bastion" {
+  name        = "${var.project_name}-bastion-sg"
+  description = "SSH access to bastion host"
+  vpc_id      = var.vpc_id
+
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+data "aws_ami" "amazon_linux" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["al2023-ami-*-x86_64"]
+  }
+}
+
+resource "aws_instance" "bastion" {
+  ami                         = data.aws_ami.amazon_linux.id
+  instance_type               = "t3.micro"
+  subnet_id                   = var.public_subnet_id
+  vpc_security_group_ids      = [aws_security_group.bastion.id]
+  iam_instance_profile        = aws_iam_instance_profile.bastion.name
+  associate_public_ip_address = true
+  key_name                    = aws_key_pair.bastion.key_name
+
+
+  user_data = <<-EOF
+              #!/bin/bash
+              set -e
+
+              # Update system
+              yum update -y
+
+              # Install kubectl
+              curl -LO https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl
+              chmod +x kubectl
+              mv kubectl /usr/local/bin/
+
+              # Install Helm
+              curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+              EOF
+
+  tags = {
+    Name = "${var.project_name}-bastion"
+  }
+}
+
+resource "aws_key_pair" "bastion" {
+  key_name   = "${var.project_name}-bastion-key"
+  public_key = file("~/.ssh/eks-bastion.pub")
+}
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\terraform\infra\modules\bastion\outputs.tf =====
+
+output "public_ip" {
+  value = aws_instance.bastion.public_ip
+}
+output "bastion_role_arn" {
+  value = aws_iam_role.bastion.arn
+}
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\terraform\infra\modules\bastion\variables.tf =====
+
+variable "project_name" { type = string }
+variable "vpc_id" { type = string }
+variable "public_subnet_id" { type = string }
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\terraform\infra\modules\ecr\main.tf =====
+
+resource "aws_ecr_repository" "fastapi" {
+  name                 = "${var.project_name}-fastapi"
+  image_tag_mutability = "MUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+}
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\terraform\infra\modules\ecr\outputs.tf =====
+
+output "repository_url" {
+  value = aws_ecr_repository.fastapi.repository_url
+}
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\terraform\infra\modules\ecr\variables.tf =====
+
+variable "project_name" { type = string }
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\terraform\infra\modules\eks\main.tf =====
+
+resource "aws_eks_cluster" "this" {
+  name     = "${var.project_name}-cluster"
+  role_arn = var.cluster_role_arn
+
+  vpc_config {
+    subnet_ids = var.private_subnet_ids
+  }
+
+}
+
+resource "aws_eks_node_group" "this" {
+  cluster_name    = aws_eks_cluster.this.name
+  node_group_name = "${var.project_name}-node-group"
+  node_role_arn   = var.node_role_arn
+  subnet_ids      = var.private_subnet_ids
+
+  scaling_config {
+    desired_size = 2
+    max_size     = 3
+    min_size     = 1
+  }
+
+  instance_types = ["m7i-flex.large"]
+
+}
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\terraform\infra\modules\eks\outputs.tf =====
+
+output "cluster_name" {
+  value = aws_eks_cluster.this.name
+}
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\terraform\infra\modules\eks\variables.tf =====
+
+variable "project_name" { type = string }
+variable "cluster_role_arn" { type = string }
+variable "node_role_arn" { type = string }
+variable "private_subnet_ids" { type = list(string) }
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\terraform\infra\modules\iam\main.tf =====
+
+resource "aws_iam_role" "eks_cluster" {
+  name = "${var.project_name}-eks-cluster-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = {
+        Service = "eks.amazonaws.com"
+      }
+      Action = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
+  role       = aws_iam_role.eks_cluster.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
+}
+
+resource "aws_iam_role" "eks_node" {
+  name = "${var.project_name}-eks-node-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = {
+        Service = "ec2.amazonaws.com"
+      }
+      Action = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "eks_node_worker" {
+  role       = aws_iam_role.eks_node.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
+}
+
+resource "aws_iam_role_policy_attachment" "eks_node_cni" {
+  role       = aws_iam_role.eks_node.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
+}
+
+resource "aws_iam_role_policy_attachment" "eks_node_ecr" {
+  role       = aws_iam_role.eks_node.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+}
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\terraform\infra\modules\iam\outputs.tf =====
+
+output "eks_cluster_role_arn" { value = aws_iam_role.eks_cluster.arn }
+output "eks_node_role_arn" { value = aws_iam_role.eks_node.arn }
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\terraform\infra\modules\iam\variables.tf =====
+
+variable "project_name" { type = string }
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\terraform\infra\modules\network\az.tf =====
+
+data "aws_availability_zones" "available" {}
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\terraform\infra\modules\network\main.tf =====
+
+resource "aws_vpc" "this" {
+  cidr_block           = "10.0.0.0/16"
+  enable_dns_support   = true
+  enable_dns_hostnames = true
+
+  tags = {
+    Name        = "${var.project_name}-vpc"
+    Environment = var.environment
+  }
+}
+
+resource "aws_internet_gateway" "this" {
+  vpc_id = aws_vpc.this.id
+
+  tags = {
+    Name = "${var.project_name}-igw"
+  }
+}
+
+resource "aws_subnet" "public" {
+  count                   = 2
+  vpc_id                  = aws_vpc.this.id
+  cidr_block              = cidrsubnet(aws_vpc.this.cidr_block, 8, count.index)
+  availability_zone       = data.aws_availability_zones.available.names[count.index]
+  map_public_ip_on_launch = true
+
+  tags = {
+    Name = "${var.project_name}-public-${count.index}"
+  }
+}
+
+resource "aws_subnet" "private" {
+  count             = 2
+  vpc_id            = aws_vpc.this.id
+  cidr_block        = cidrsubnet(aws_vpc.this.cidr_block, 8, count.index + 10)
+  availability_zone = data.aws_availability_zones.available.names[count.index]
+
+  tags = {
+    Name = "${var.project_name}-private-${count.index}"
+  }
+}
+
+resource "aws_eip" "nat" {
+  domain = "vpc"
+}
+
+resource "aws_nat_gateway" "this" {
+  allocation_id = aws_eip.nat.id
+  subnet_id     = aws_subnet.public[0].id
+
+  depends_on = [aws_internet_gateway.this]
+
+  tags = {
+    Name = "${var.project_name}-nat"
+  }
+}
+
+resource "aws_route_table" "public" {
+  vpc_id = aws_vpc.this.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.this.id
+  }
+}
+
+resource "aws_route_table" "private" {
+  vpc_id = aws_vpc.this.id
+
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.this.id
+  }
+}
+
+resource "aws_route_table_association" "public" {
+  count          = length(aws_subnet.public)
+  subnet_id      = aws_subnet.public[count.index].id
+  route_table_id = aws_route_table.public.id
+}
+
+resource "aws_route_table_association" "private" {
+  count          = length(aws_subnet.private)
+  subnet_id      = aws_subnet.private[count.index].id
+  route_table_id = aws_route_table.private.id
+}
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\terraform\infra\modules\network\outputs.tf =====
+
+output "vpc_id" { value = aws_vpc.this.id }
+output "public_subnet_ids" { value = aws_subnet.public[*].id }
+output "private_subnet_ids" { value = aws_subnet.private[*].id }
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\terraform\infra\modules\network\variables.tf =====
+
+variable "project_name" {
+  type = string
+}
+
+variable "environment" {
+  type = string
+}
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\terraform\infra\outputs.tf =====
+
+output "vpc_id" {
+  value = module.network.vpc_id
+}
+
+output "public_subnet_ids" {
+  value = module.network.public_subnet_ids
+}
+
+output "private_subnet_ids" {
+  value = module.network.private_subnet_ids
+}
+
+output "eks_cluster_name" {
+  value = module.eks.cluster_name
+}
+
+output "bastion_public_ip" {
+  value = module.bastion.public_ip
+}
+
+output "ecr_repository_url" {
+  value = module.ecr.repository_url
+}
+
+output "eks_node_role_arn" {
+  value = module.iam.eks_node_role_arn
+}
+
+output "bastion_role_arn" {
+  value = module.bastion.bastion_role_arn
+}
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\terraform\infra\providers.tf =====
+
+provider "aws" {
+  region = var.aws_region
+}
+
+provider "kubernetes" {
+  host                   = data.aws_eks_cluster.this.endpoint
+  cluster_ca_certificate = base64decode(data.aws_eks_cluster.this.certificate_authority[0].data)
+  token                  = data.aws_eks_cluster_auth.this.token
+}
+
+provider "helm" {
+  kubernetes = {
+    host                   = data.aws_eks_cluster.this.endpoint
+    cluster_ca_certificate = base64decode(data.aws_eks_cluster.this.certificate_authority[0].data)
+    token                  = data.aws_eks_cluster_auth.this.token
+  }
+}
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\terraform\infra\variables.tf =====
+
+variable "aws_region" {
+  description = "AWS region to deploy resources"
+  type        = string
+  default     = "us-east-1"
+}
+
+variable "project_name" {
+  description = "Name of the project"
+  type        = string
+  default     = "eks-observability"
+}
+
+variable "environment" {
+  description = "Deployment environment"
+  type        = string
+  default     = "dev"
+}
+
+
+===== C:\Users\ABHAY KUMAR SAINI\Downloads\eks-observability-fastapi\terraform\infra\versions.tf =====
+
+terraform {
+  required_version = ">= 1.4.0"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
+

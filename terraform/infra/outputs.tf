@@ -21,3 +21,11 @@ output "bastion_public_ip" {
 output "ecr_repository_url" {
   value = module.ecr.repository_url
 }
+
+output "eks_node_role_arn" {
+  value = module.iam.eks_node_role_arn
+}
+
+output "bastion_role_arn" {
+  value = module.bastion.bastion_role_arn
+}

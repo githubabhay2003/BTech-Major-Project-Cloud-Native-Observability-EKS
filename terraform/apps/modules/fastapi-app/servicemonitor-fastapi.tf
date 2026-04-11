@@ -31,6 +31,4 @@ resource "kubernetes_manifest" "fastapi_servicemonitor" {
       ]
     }
   }
-
-  depends_on = []
 }
