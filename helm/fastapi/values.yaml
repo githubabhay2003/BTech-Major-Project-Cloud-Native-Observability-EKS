@@ -12,3 +12,6 @@ resources: {}
 
 labels:
   app: fastapi
+
+ingress:
+  enabled: true
