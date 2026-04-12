@@ -53,8 +53,18 @@ resource "helm_release" "kube_prometheus_stack" {
 
       prometheus = {
         prometheusSpec = {
+
           externalUrl = "http://a6b30234174294ddc819d213eac8e371-1913973493.us-east-1.elb.amazonaws.com/prometheus"
           routePrefix = "/prometheus"
+
+          # 🔥 CRITICAL FIX (this was missing)
+          alertingEndpoints = [
+            {
+              name      = "kube-prometheus-stack-alertmanager"
+              namespace = "monitoring"
+              port      = "web"
+            }
+          ]
         }
       }
 
@@ -62,19 +72,24 @@ resource "helm_release" "kube_prometheus_stack" {
         enabled = true
 
         alertmanagerSpec = {
-          externalUrl = "http://a6b30234174294ddc819d213eac8e371-1913973493.us-east-1.elb.amazonaws.com/alertmanager"
-          routePrefix = "/alertmanager"
+          replicas = 1
         }
 
         config = {
-          global = {}
+          global = {
+            smtp_smarthost = "smtp.gmail.com:587"
+            smtp_from      = "abhaykumarsaini9982@gmail.com"
+            smtp_auth_username = "abhaykumarsaini9982@gmail.com"
+            smtp_auth_password = "orxb hjpr qudh syqr"
+            smtp_require_tls   = true
+          }
 
           route = {
-            receiver        = "null-receiver"
-            group_by        = ["alertname"]
-            group_wait      = "30s"
-            group_interval  = "5m"
-            repeat_interval = "4h"
+            receiver = "email-notifications"
+            group_by = ["alertname"]
+            group_wait = "10s"
+            group_interval = "1m"
+            repeat_interval = "1h"
           }
 
           receivers = [
@@ -82,11 +97,11 @@ resource "helm_release" "kube_prometheus_stack" {
               name = "null"
             },
             {
-              name = "null-receiver"
-
-              webhook_configs = [
+              name = "email-notifications"
+              email_configs = [
                 {
-                  url = "http://127.0.0.1:5001/"
+                  to            = "abhaykumarsaini9982@gmail.com"
+                  send_resolved = true
                 }
               ]
             }

@@ -2,5 +2,5 @@
 
 echo "Triggering deployment..."
 
-git commit --allow-empty -m "trigger deployment"
+git commit --allow-empty -m "Trigger deployment"
 git push

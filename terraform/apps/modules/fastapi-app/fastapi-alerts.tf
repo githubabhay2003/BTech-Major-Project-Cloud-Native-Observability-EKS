@@ -28,7 +28,7 @@ resource "kubernetes_manifest" "fastapi_alerts" {
                 severity = "critical"
               }
               annotations = {
-                summary = "FastAPI is returning 5xx errors"
+                summary     = "FastAPI is returning 5xx errors"
                 description = "FastAPI has elevated 5xx responses for over 1 minute"
               }
             },
@@ -47,25 +47,40 @@ resource "kubernetes_manifest" "fastapi_alerts" {
                 severity = "warning"
               }
               annotations = {
-                summary = "FastAPI latency is high (P95)"
+                summary     = "FastAPI latency is high (P95)"
                 description = "95th percentile latency > 1s for 2 minutes"
               }
             },
 
             # 🔴 FastAPI pod down
             {
-              alert = "FastAPIPodDown"
+              alert = "FastAPIDeploymentDown"
               expr  = <<-EOT
-                absent(up{job="fastapi"})
+                kube_deployment_status_replicas_available{namespace="default", deployment="fastapi-app"} == 0
               EOT
               for = "30s"
               labels = {
                 severity = "critical"
               }
               annotations = {
-                summary = "FastAPI is down"
-                description = "No FastAPI pods are reachable"
+                summary     = "FastAPI is down"
+                description = "FastAPI deployment has no available replicas"
+              }
+            },
 
+            # 🔴 Website pod down
+            {
+              alert = "WebsiteDeploymentDown"
+              expr  = <<-EOT
+                kube_deployment_status_replicas_available{namespace="default", deployment="website"} == 0
+              EOT
+              for = "30s"
+              labels = {
+                severity = "critical"
+              }
+              annotations = {
+                summary     = "Website is down"
+                description = "Website deployment has no available replicas"
               }
             }
           ]

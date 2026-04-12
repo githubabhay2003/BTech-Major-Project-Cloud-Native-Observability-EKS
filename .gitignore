@@ -4,22 +4,17 @@
 *.tfstate.*
 crash.log
 
-# Kubernetes
-kubeconfig
-*.kubeconfig
+# Sensitive
+*.pem
+*.key
+.env
+
+# OS
+.DS_Store
+
+# Node (if website uses it)
+node_modules/
 
 # Python
 __pycache__/
 *.pyc
-
-# Node (future website)
-node_modules/
-
-# OS / Editor
-.DS_Store
-Thumbs.db
-.vscode/
-.idea/
-
-# Env files
-.env
