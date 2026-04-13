@@ -78,9 +78,9 @@ resource "helm_release" "kube_prometheus_stack" {
         config = {
           global = {
             smtp_smarthost = "smtp.gmail.com:587"
-            smtp_from      = "abhaykumarsaini9982@gmail.com"
-            smtp_auth_username = "abhaykumarsaini9982@gmail.com"
-            smtp_auth_password = "orxb hjpr qudh syqr"
+            smtp_from      = "yourmail@gmail.com"
+            smtp_auth_username = "yourmail@gmail.com"
+            smtp_auth_password = "App_Password"
             smtp_require_tls   = true
           }
 
@@ -100,7 +100,7 @@ resource "helm_release" "kube_prometheus_stack" {
               name = "email-notifications"
               email_configs = [
                 {
-                  to            = "abhaykumarsaini9982@gmail.com"
+                  to            = "yourmail@gmail.com"
                   send_resolved = true
                 }
               ]
