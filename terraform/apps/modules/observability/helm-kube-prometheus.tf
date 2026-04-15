@@ -12,6 +12,10 @@ resource "helm_release" "kube_prometheus_stack" {
   values = [
     yamlencode({
 
+      prometheusBlackboxExporter = {
+        enabled = true
+      }
+
       grafana = {
         adminUser     = "admin"
         adminPassword = "prom-operator"
@@ -54,10 +58,18 @@ resource "helm_release" "kube_prometheus_stack" {
       prometheus = {
         prometheusSpec = {
 
+          probeNamespaceSelector = {}
+
+          probeSelector = {
+            matchLabels = {
+              release = "kube-prometheus-stack"
+            }
+          }
+
           externalUrl = "http://a6b30234174294ddc819d213eac8e371-1913973493.us-east-1.elb.amazonaws.com/prometheus"
           routePrefix = "/prometheus"
 
-          # 🔥 CRITICAL FIX (this was missing)
+          serviceMonitorNamespaceSelector = {}
           alertingEndpoints = [
             {
               name      = "kube-prometheus-stack-alertmanager"
