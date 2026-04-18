@@ -1,3 +1,30 @@
+# 📊 Implementation Challenges and Practical Insights in Building a Cloud-Native Observability Platform on AWS EKS
+
+## 📝 Overview
+
+This section presents a structured analysis of the challenges encountered during the design and implementation of a cloud-native observability platform deployed on **Amazon Elastic Kubernetes Service (EKS)**. 
+
+The system integrates multiple modern DevOps and cloud-native technologies, including:
+
+* **Infrastructure as Code (IaC)** using Terraform
+* **Container orchestration** using Kubernetes (EKS)
+* **Application deployment** using Helm
+* **Continuous Integration and Continuous Delivery (CI/CD)** using GitHub Actions
+* **Observability stack** including Prometheus, Grafana, and Alertmanager
+
+The challenges span across different layers of the system, such as infrastructure provisioning, Kubernetes configuration, application deployment, CI/CD automation, and monitoring integration.
+
+Each challenge is documented with:
+
+* A clear description of the issue
+* The underlying root cause
+* The solution or approach taken
+* The related system component
+
+This structured documentation reflects real-world DevOps practices and highlights key learnings in building scalable, automated, and observable cloud-native systems.
+
+---
+
 ## 📊 Batch 1: Infrastructure & Terraform Challenges (1–6)
 
 | # | Challenge Title                           | Description                                                                                                   | Root Cause                                                                                                            | Solution / Approach                                                                                                                             | Related Component                      |
