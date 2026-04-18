@@ -20,6 +20,10 @@ resource "helm_release" "kube_prometheus_stack" {
         adminUser     = "admin"
         adminPassword = "prom-operator"
 
+        serviceMonitor = {
+            enabled = false
+          }
+
         "grafana.ini" = {
           server = {
             root_url            = "http://a6b30234174294ddc819d213eac8e371-1913973493.us-east-1.elb.amazonaws.com/grafana"
@@ -74,7 +78,7 @@ resource "helm_release" "kube_prometheus_stack" {
             {
               name      = "kube-prometheus-stack-alertmanager"
               namespace = "monitoring"
-              port      = "web"
+              port      = "http-web"
             }
           ]
         }
@@ -90,9 +94,9 @@ resource "helm_release" "kube_prometheus_stack" {
         config = {
           global = {
             smtp_smarthost = "smtp.gmail.com:587"
-            smtp_from      = "yourmail@gmail.com"
-            smtp_auth_username = "yourmail@gmail.com"
-            smtp_auth_password = "App_Password"
+            smtp_from      = "abhaykumarsaini9982@gmail.com"
+            smtp_auth_username = "abhaykumarsaini9982@gmail.com"
+            smtp_auth_password = "wkgq nlix rvqt bfit"
             smtp_require_tls   = true
           }
 
@@ -112,7 +116,7 @@ resource "helm_release" "kube_prometheus_stack" {
               name = "email-notifications"
               email_configs = [
                 {
-                  to            = "yourmail@gmail.com"
+                  to            = "abhaykumarsaini9982@gmail.com"
                   send_resolved = true
                 }
               ]

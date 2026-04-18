@@ -9,5 +9,6 @@ resource "kubernetes_config_map_v1" "grafana_fastapi_dashboard" {
 
   data = {
     "fastapi-golden-signals.json" = file("${path.module}/grafana/dashboards/fastapi-golden-signals.json")
+
   }
 }
