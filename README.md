@@ -1,4 +1,4 @@
-# Cloud-Native Observability Platform on Amazon EKS
+# Cloud-Native Observability Platform on Amazon Elastic Kubernetes Service (EKS)
 ---
 
 ![AWS](https://img.shields.io/badge/AWS-EKS%20%7C%20ECR%20%7C%20IAM-orange?logo=amazonaws)
@@ -24,1727 +24,2163 @@
 - Prof. (Dr.) Om Prakash Sharma
 
 ---
-# 1. Project Description / Overview
-This project focuses on building an automated and reliable cloud-based system for deploying and monitoring applications using modern DevOps practices.
+
+## 1. Quick Overview
+
+This project presents the design and implementation of a **cloud-native observability platform** deployed on **Amazon Elastic Kubernetes Service (Amazon EKS)**.
+
+The system demonstrates how modern applications can be:
+
+* **Deployed in containers**
+* **Managed using Kubernetes**
+* **Monitored using observability tools**
+* **Automated using CI/CD pipelines**
 
 ---
 
-### 🔹 What this project does
+### **What the Project Does**
 
-* Deploys an application on **Amazon Web Services (AWS)** cloud platform
-* Runs applications inside **Amazon Elastic Kubernetes Service (EKS)** for scalability and management
-* Automates build and deployment using a **Continuous Integration and Continuous Deployment (CI/CD)** pipeline
-* Continuously monitors system performance and health
+The platform includes:
 
----
+* A **backend application** built using *FastAPI* (a modern Python web framework)
+* A **static frontend website** served using *NGINX*
+* A complete **monitoring and alerting system** using:
 
-### 🔹 System Components
+  * **Prometheus** (metrics collection)
+  * **Grafana** (visual dashboards)
+  * **Alertmanager** (notifications)
 
-* **Backend Application:** Developed using FastAPI (Python-based web framework)
-* **Frontend:** Static website served using Nginx (web server)
-* **Containerization:** Applications are packaged using Docker (container platform)
-* **Orchestration:** Managed using Kubernetes via Amazon Elastic Kubernetes Service (EKS)
+All components are deployed on a **Kubernetes cluster (EKS)** and managed using **Infrastructure as Code (Terraform)** and **Helm charts**.
 
 ---
 
-### 🔹 Automation & Deployment
+### **Key Capabilities**
 
-* Infrastructure is created using **Terraform (Infrastructure as Code - IaC)**
-* Eliminates manual configuration and ensures reproducibility
-* CI/CD pipeline implemented using **GitHub Actions**:
-
-  * Automatically builds application
-  * Pushes container images to **Amazon Elastic Container Registry (ECR)**
-  * Deploys applications to Kubernetes using Helm (Kubernetes package manager)
-* Secure authentication using **OpenID Connect (OIDC)** (no hardcoded credentials required)
+* 📦 Containerized application deployment
+* ☁️ Cloud infrastructure provisioning using Terraform
+* 🔄 Automated deployment using GitHub Actions (CI/CD)
+* 📊 Real-time monitoring and visualization
+* 🚨 Intelligent alerting for system health and failures
+* 🌐 Ingress-based routing for accessing services
 
 ---
 
-### 🔹 Monitoring & Observability
+### **Real-World Relevance**
 
-* **Prometheus (monitoring tool)** collects application and system metrics
-* **Grafana (visualization tool)** provides dashboards for data analysis
-* **Alertmanager (alerting system)** sends notifications when issues occur
-* Enables monitoring of:
+In real-world production systems, simply deploying applications is not enough. Teams need visibility into:
 
-  * Performance and response time
-  * Errors and failures
-  * Resource utilization
+* System performance
+* Error rates
+* Resource usage
+* Service availability
 
----
+This project simulates a **production-like environment**, where engineers can:
 
-### 🔹 Key Benefits
-
-* Fully automated and reproducible infrastructure
-* Scalable system suitable for real-world applications
-* Reduces manual errors and deployment time
-* Provides complete visibility into system performance
-
----
-# 2. Problem Statement
-
-Modern cloud-based applications are becoming increasingly complex and require continuous monitoring and reliable deployment mechanisms. However, many existing systems face several critical challenges.
+* Detect failures early
+* Monitor system behavior
+* Respond to incidents effectively
 
 ---
 
-### 🔹 Key Problems Identified
+### **In One Line**
 
-* **Lack of Proper Monitoring Systems**
-  Many applications do not have effective tools to continuously track performance, making it difficult to detect issues such as delays, failures, or resource overload.
-
-* **Manual Infrastructure Setup**
-  Traditional systems require manual configuration of cloud resources, which:
-
-  * Increases the chances of human error
-  * Consumes more time
-  * Leads to inconsistent environments
-
-* **Absence of Automation**
-  Without **Continuous Integration and Continuous Deployment (CI/CD)** pipelines:
-
-  * Application updates are slow
-  * Deployment processes are not standardized
-  * Frequent manual intervention is required
-
-* **No Rebuild-Safe Architecture**
-  Many systems cannot be easily recreated once they fail or are deleted, leading to downtime and recovery challenges.
+> This project demonstrates how to build, deploy, monitor, and manage a scalable cloud-native application using modern DevOps and observability practices.
 
 ---
 
-### 🔹 Real-World Scenario
+## 2. Problem Statement & Motivation
 
-Consider a company running a web application on the cloud:
+### **Problem Statement**
 
-* If the application slows down or crashes, there is **no monitoring system** to detect the issue early
-* Infrastructure is set up **manually**, so recreating it takes significant time
-* Deployment is done manually, increasing the risk of errors
-* If the system fails, it **cannot be rebuilt quickly**, causing service downtime
+In modern cloud environments, applications are increasingly deployed using **microservices** and **container-based architectures**. While this improves scalability and flexibility, it also introduces new challenges:
 
----
+* Difficulty in tracking application performance
+* Limited visibility into system behavior
+* Delayed detection of failures or downtime
+* Lack of centralized monitoring and alerting
+* Complex deployment and infrastructure management
 
-### 🔹 Overall Problem
-
-There is a need for a unified system that can:
-
-* Automate infrastructure creation
-* Deploy applications efficiently
-* Monitor system performance in real time
-* And allow the entire system to be rebuilt safely without manual effort
-
----
-# 3. Objectives
-
-The main objectives of this project are:
+Traditional monitoring approaches are often insufficient for such dynamic systems, especially when applications are distributed across multiple containers and nodes.
 
 ---
 
-### 🔹 Core Objectives
+### **Why This is a Problem**
 
-* **Automate Infrastructure Provisioning**
-  To create cloud resources automatically using **Terraform (Infrastructure as Code - IaC)**, reducing manual effort and ensuring consistency.
+Without proper observability:
 
-* **Deploy Application on Kubernetes**
-  To deploy a containerized application on **Amazon Elastic Kubernetes Service (EKS)** for scalable and efficient application management.
+* A small issue (like a slow API) can go unnoticed until it affects users
+* System failures may not be detected in real time
+* Debugging becomes time-consuming and inefficient
+* Teams lack data-driven insights to improve performance
 
-* **Implement Monitoring System**
-  To track system and application performance using **Prometheus (monitoring tool)** and visualize data using **Grafana (visualization tool)**.
+For example, if an API starts returning errors intermittently, there must be a system that:
 
-* **Enable Alerting Mechanism**
-  To configure **Alertmanager (alerting system)** for generating notifications when system performance crosses defined thresholds.
-
-* **Ensure Rebuild Reliability**
-  To design the system in such a way that the entire infrastructure and application can be safely deleted and recreated without manual intervention.
+* Detects the error rate increase
+* Alerts the team immediately
+* Provides metrics to diagnose the root cause
 
 ---
 
-### 🔹 Supporting Objectives
+### **Motivation Behind the Project**
 
-* **Implement Continuous Integration and Continuous Deployment (CI/CD)**
-  To automate build and deployment processes using **GitHub Actions**, improving efficiency and reducing errors.
+This project is motivated by the need to build a **production-like observability system** that addresses these challenges.
 
-* **Use Secure Authentication Mechanism**
-  To implement **OpenID Connect (OIDC)** for secure access without storing long-term credentials.
+The key motivations include:
+
+* 🔍 **Visibility**
+  Provide deep insights into application performance and health
+
+* ⚡ **Proactive Monitoring**
+  Detect issues before they impact end users
+
+* 🤖 **Automation**
+  Reduce manual effort using CI/CD and Infrastructure as Code
+
+* 📈 **Scalability**
+  Design a system that can grow with increasing workloads
+
+* 🧪 **Practical Learning**
+  Gain hands-on experience with real-world DevOps tools and practices
 
 ---
-# 4. Key Features and Skills Demonstrated
 
-This project combines modern cloud technologies and DevOps practices to build a scalable, automated, and production-ready system while demonstrating practical engineering skills.
+### **Goal in Simple Terms**
+
+> Build a system where you don’t just run applications — you can *see*, *measure*, and *respond* to everything happening inside them.
 
 ---
 
-### ☁️ Cloud Infrastructure (Amazon Web Services - AWS)
+## 3. Objectives
 
-* Provisioned cloud resources such as:
+### **Primary Objective**
+
+The primary objective of this project is to design and implement a **cloud-native observability platform** on **Amazon Elastic Kubernetes Service (Amazon EKS)** that enables efficient deployment, monitoring, and management of applications.
+
+---
+
+### **Specific Objectives**
+
+To achieve the primary goal, the project focuses on the following key objectives:
+
+---
+
+### **1. Build a Cloud-Native Application Environment**
+
+* Develop and deploy applications using **containerization (Docker)**
+* Use **Kubernetes** for orchestration and management
+* Ensure the system follows modern cloud-native principles
+
+---
+
+### **2. Implement Infrastructure as Code (IaC)**
+
+* Use **Terraform** to provision cloud resources such as:
 
   * Virtual Private Cloud (VPC)
-  * Subnets and networking components
-  * Network Address Translation (NAT) Gateway
-* Deployed and managed **Amazon Elastic Kubernetes Service (EKS)**
-* Configured **AWS Identity and Access Management (IAM)** for secure access
-
-👉 **Skill Gained:** Cloud architecture design and secure infrastructure management
+  * Amazon EKS cluster
+  * Networking components
+* Enable repeatable and automated infrastructure setup
 
 ---
 
-### 🏗️ Infrastructure as Code (Terraform)
+### **3. Automate Deployment using CI/CD**
 
-* Automated complete infrastructure using **Terraform (Infrastructure as Code - IaC)**
-* Designed modular architecture (network, EKS, IAM, ECR, bastion)
-* Ensured consistent and reproducible environment setup
+* Set up a **Continuous Integration and Continuous Deployment (CI/CD)** pipeline using **GitHub Actions**
+* Automate:
 
-👉 **Skill Gained:** Infrastructure automation and modular system design
-
----
-
-### ⚙️ CI/CD Automation (GitHub Actions + OIDC)
-
-* Implemented **Continuous Integration and Continuous Deployment (CI/CD)** pipeline using GitHub Actions
-* Automated:
-
-  * Application build
-  * Docker image creation and tagging
-  * Deployment to Kubernetes
-* Used **OpenID Connect (OIDC)** for secure authentication without storing credentials
-
-👉 **Skill Gained:** Secure and automated deployment pipeline design
+  * Building Docker images
+  * Pushing images to Amazon Elastic Container Registry (ECR)
+  * Deploying applications to Kubernetes
 
 ---
 
-### 🐳 Containerization (Docker)
+### **4. Enable Observability**
 
-* Built Docker images for:
+* Integrate monitoring tools to collect and visualize system data:
 
-  * FastAPI backend
-  * Nginx frontend
-* Managed container lifecycle using **Amazon Elastic Container Registry (ECR)** and Kubernetes
-
-👉 **Skill Gained:** Application containerization and image management
+  * **Prometheus** for metrics collection
+  * **Grafana** for dashboard visualization
+* Instrument the backend application to expose performance metrics
 
 ---
 
-### ☸️ Kubernetes & Helm Deployment
+### **5. Implement Alerting Mechanisms**
 
-* Deployed applications on **Amazon Elastic Kubernetes Service (EKS)**
-* Used **Helm (Kubernetes package manager)** for simplified deployment
-* Configured:
+* Configure **Alertmanager** to send notifications when:
 
-  * Deployments (replicas, health checks)
-  * Services (ClusterIP)
-  * Ingress (routing rules)
-
-👉 **Skill Gained:** Kubernetes orchestration and scalable deployment
+  * Error rates increase
+  * Latency exceeds thresholds
+  * Services become unavailable
 
 ---
 
-### 🌐 Traffic Management & Networking
+### **6. Provide External Access via Ingress**
 
-* Implemented **NGINX Ingress Controller** with AWS Load Balancer
-* Configured path-based routing:
+* Use **NGINX Ingress Controller** to:
+
+  * Route external traffic to services
+  * Enable centralized access to applications and monitoring tools
+
+---
+
+### **7. Demonstrate a Production-Like Setup**
+
+* Simulate real-world scenarios including:
+
+  * Multi-service deployment
+  * Health checks and probes
+  * Monitoring and alerting workflows
+
+---
+
+### **Objective Summary**
+
+> The project aims to create a complete ecosystem where applications are not only deployed, but also continuously monitored, automatically updated, and intelligently managed.
+
+---
+
+## 4. Proposed Solution (High-Level)
+
+### **Overview of the Proposed Solution**
+
+To address the challenges of monitoring, managing, and scaling modern applications, this project proposes a **cloud-native observability platform** built on **Amazon Elastic Kubernetes Service (Amazon EKS)**.
+
+The solution combines:
+
+* **Containerized applications**
+* **Automated infrastructure provisioning**
+* **Continuous deployment pipelines**
+* **Integrated monitoring and alerting**
+
+All components work together to create a **fully automated and observable system**.
+
+---
+
+### **Core Idea**
+
+Instead of treating deployment and monitoring as separate tasks, this project integrates them into a **single unified workflow** where:
+
+* Applications are automatically deployed
+* Metrics are continuously collected
+* System health is constantly monitored
+* Alerts are triggered when issues occur
+
+---
+
+### **Key Components of the Solution**
+
+---
+
+### **1. Application Layer**
+
+* A **FastAPI-based backend service** provides API endpoints
+* A **static website** acts as a frontend interface
+* Both are containerized using Docker and deployed on Kubernetes
+
+---
+
+### **2. Infrastructure Layer**
+
+* **Terraform** is used to provision:
+
+  * Networking (VPC, subnets, gateways)
+  * Amazon EKS cluster
+  * Supporting AWS resources
+
+This ensures:
+
+* Consistency
+* Repeatability
+* Easy scalability
+
+---
+
+### **3. Deployment Automation (CI/CD)**
+
+* **GitHub Actions** automates the entire deployment process:
+
+  * Builds Docker images
+  * Pushes images to Amazon ECR (Elastic Container Registry)
+  * Deploys applications to EKS using Helm
+
+This eliminates manual deployment steps.
+
+---
+
+### **4. Kubernetes Management (Helm)**
+
+* Applications are deployed using **Helm charts**, which:
+
+  * Simplify configuration
+  * Enable versioned deployments
+  * Allow easy updates and rollbacks
+
+---
+
+### **5. Observability Layer**
+
+The platform integrates a full observability stack:
+
+* **Prometheus**
+  Collects application and system metrics
+
+* **Grafana**
+  Visualizes metrics through dashboards
+
+* **Alertmanager**
+  Sends alerts when predefined conditions are met
+
+---
+
+### **6. Traffic Routing**
+
+* **NGINX Ingress Controller** is used to:
+
+  * Route external requests to services
+  * Provide a single entry point to the system
+  * Enable access to:
+
+    * Application endpoints
+    * Monitoring dashboards
+
+---
+
+### **How Everything Works Together (Simple Flow)**
+
+1. Developer pushes code to GitHub
+2. CI/CD pipeline builds and deploys the application
+3. Application runs inside Kubernetes (EKS)
+4. Prometheus collects metrics from the application
+5. Grafana displays these metrics in dashboards
+6. Alertmanager sends notifications if issues are detected
+
+---
+
+### **In Simple Words**
+
+> The solution creates a system where applications are automatically deployed, continuously monitored, and instantly reported on when something goes wrong.
+
+---
+
+## 5. Architecture Overview
+
+### **Architecture Diagram**
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/githubabhay2003/BTech-Major-Project-Cloud-Native-Observability-EKS/main/docs/images/architecture-image.png" width="100%"><br>
+  <b>Figure:</b> <i>End-to-End Architecture of the Cloud-Native Observability Platform on Amazon EKS</i>
+</p>
+
+---
+
+### **High-Level Architecture Description**
+
+The system is designed as a **layered cloud-native architecture**, where each layer has a specific responsibility. This ensures modularity, scalability, and ease of management.
+
+The architecture can be understood in **four main layers**:
+
+---
+
+## **1. External Layer (User Interaction)**
+
+* Users access the system through a **web browser**
+* Requests are sent to the application via the internet
+* Developers push code changes to **GitHub**, triggering the deployment pipeline
+
+👉 This layer represents both **end-users** and **developers**
+
+---
+
+## **2. CI/CD Layer (Automation Layer)**
+
+This layer handles **Continuous Integration and Continuous Deployment (CI/CD)**.
+
+### Key Components:
+
+* **GitHub Actions**
+* **OIDC (OpenID Connect) Authentication**
+* **Docker**
+* **Amazon ECR (Elastic Container Registry)**
+* **Helm**
+
+### Workflow:
+
+1. Developer pushes code to GitHub
+2. GitHub Actions pipeline is triggered
+3. Docker images are built for:
+
+   * FastAPI backend
+   * Website
+4. Images are pushed to Amazon ECR
+5. Helm deploys updated applications to EKS
+
+👉 This ensures **fully automated deployments without manual intervention**
+
+---
+
+## **3. AWS Infrastructure Layer**
+
+This is the **core cloud environment** where everything runs.
+
+### **Networking (Amazon VPC)**
+
+* **Public Subnets**
+
+  * Internet Gateway (external access)
+  * NAT Gateway (outbound internet for private resources)
+  * Bastion Host (secure admin access)
+
+* **Private Subnets**
+
+  * Amazon EKS Cluster
+  * Worker Nodes (Node Group)
+
+👉 Ensures **secure and isolated deployment of workloads**
+
+---
+
+### **EKS Cluster (Kubernetes Layer)**
+
+Inside the cluster:
+
+#### **Ingress Controller**
+
+* **NGINX Ingress Controller**
+* Acts as a **single entry point**
+* Routes traffic based on paths:
 
   * `/` → Website
-  * `/api` → Backend
-  * Monitoring endpoints
-* Ensured efficient and structured traffic flow
-
-👉 **Skill Gained:** Networking and request routing in distributed systems
+  * `/api` → FastAPI
 
 ---
 
-### 📊 Monitoring & Observability
+### **Application Workloads**
 
-* Integrated **Prometheus (monitoring tool)** for metrics collection
-* Visualized data using **Grafana (dashboard tool)**
-* Configured **Alertmanager (alerting system)** for notifications
-* Monitored:
+#### **1. Static Website**
 
-  * Performance
-  * Errors
-  * Resource usage
+* Deployed as a Kubernetes Deployment
+* Exposed via a Service on port 80
 
-👉 **Skill Gained:** Real-time monitoring and system observability
+#### **2. FastAPI Backend**
 
----
+* Deployed as a Kubernetes Deployment
+* Exposes:
 
-### 🔐 Security Best Practices
-
-* Implemented **OIDC-based authentication** (no static credentials)
-* Controlled access using IAM roles and Kubernetes configuration
-* Deployed workloads in secure private subnets
-
-👉 **Skill Gained:** Secure system design and access management
+  * `/api` → application endpoints
+  * `/health` → liveness/readiness checks
+  * `/metrics` → Prometheus metrics
 
 ---
 
-### 🔁 Reliability and Rebuild Capability
+### **IAM Roles & State Management**
 
-* Designed system to be:
+* IAM roles are used for:
 
-  * Fully automated
-  * Easily deployable
-  * Rebuild-safe
-* Entire infrastructure and application can be recreated without manual steps
+  * EKS Cluster
+  * Node Group
+  * GitHub Actions (OIDC-based access)
+  * Bastion Host
 
-👉 **Skill Gained:** Designing reliable and fault-tolerant systems
+* Terraform state:
 
----
-# 5. System Architecture
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/f2af2dc3-a293-4803-895b-82b327ffcd05" alt="EKS Observability Architecture" width="100%">
-</p>
+  * Stored in **Amazon S3**
+  * Locked using **DynamoDB**
 
-<p align="center">
-  <em>Figure: End-to-end cloud-native architecture on AWS EKS with CI/CD, multi-service deployment, and observability stack</em>
-</p>
+👉 Ensures **secure access control and consistent infrastructure state**
 
 ---
 
-## System Architecture Explanation
-The system is designed using a **layered architecture**, where each layer has a specific responsibility. This makes the system easy to manage, scalable, and reliable.
+## **4. Observability & Monitoring Layer**
+
+This layer provides **complete visibility into system behavior**.
 
 ---
 
-### 🔹 Overall Understanding (Simple View)
+### **Monitoring Components**
 
-Think of this system like a **modern shopping mall**:
+#### **Prometheus**
 
-* Entry gate → Handles all visitors (users)
-* Shops → Provide services (application)
-* Management system → Controls operations (Kubernetes)
-* CCTV & monitoring → Tracks activity (monitoring tools)
-* Construction plan → Defines structure (Terraform)
-* Automatic updates → Keeps everything up-to-date (CI/CD)
+* Collects metrics from:
 
----
-
-## 🔹 1. Entry Layer (Traffic Handling)
-
-* Uses **NGINX Ingress Controller (traffic manager)**
-* Exposed using **Amazon Web Services (AWS) Load Balancer (LB)**
-* Acts as a **single entry point** for all users
-
-### 📌 How it works:
-
-* When a user opens the system, all requests come to one place
-* Based on the request path, traffic is routed to the correct service:
-
-  * `/` → Website (frontend)
-  * `/api` → Backend application
-  * `/grafana`, `/prometheus`, `/alertmanager` → Monitoring tools
-
-👉 **Real-World Example:**
-Like a receptionist in an office who directs visitors to the correct department.
+  * FastAPI (`/metrics`)
+  * Kubernetes resources
+* Stores time-series data
 
 ---
 
-## 🔹 2. Application Layer (Actual Services)
+#### **Grafana**
 
-This layer contains the actual applications used by the user.
+* Visualizes metrics using dashboards
+* Displays:
 
-* **Frontend:** Website served using Nginx
-* **Backend:** API built using FastAPI
-
-### 📌 Key functionalities:
-
-* `/` → Basic response from application
-* `/health` → Checks if system is running properly
-* `/metrics` → Provides performance data for monitoring
-
-👉 **Real-World Example:**
-Like different departments in a company:
-
-* Front desk → Website
-* Operations team → Backend processing
+  * Request rate
+  * Error rate
+  * Latency (P95, P99)
+  * CPU and memory usage
 
 ---
 
-## 🔹 3. Kubernetes Layer (Application Management)
+#### **Alertmanager**
 
-* Managed using **Amazon Elastic Kubernetes Service (EKS)**
-* Runs applications in containers
-
-### 📌 Responsibilities:
-
-* Maintains multiple copies (replicas) of applications
-* Automatically restarts failed services
-* Exposes services internally using ClusterIP
-* Deployments managed using **Helm (Kubernetes package manager)**
-
-👉 **Real-World Example:**
-Like a manager ensuring:
-
-* Enough staff are available
-* Work continues even if someone is absent
+* Receives alerts from Prometheus
+* Sends notifications via **email**
 
 ---
 
-## 🔹 4. Observability Layer (Monitoring System)
+#### **Blackbox Exporter**
 
-* **Prometheus (monitoring tool)** collects performance data
-* **Grafana (visualization tool)** displays dashboards
-* **Alertmanager (alerting system)** sends alerts
-
-### 📌 What it monitors:
-
-* Application performance
-* Error rates
-* Traffic and usage
-* Resource consumption
-
-👉 **Real-World Example:**
-Like CCTV cameras and alarms in a building:
-
-* Monitor activity
-* Alert when something goes wrong
+* Monitors external availability of the website
+* Simulates real user access
 
 ---
 
-## 🔹 5. Infrastructure Layer (System Foundation)
+### **Custom Monitoring Resources**
 
-* Built using **Terraform (Infrastructure as Code - IaC)**
-
-### 📌 Creates:
-
-* Virtual Private Cloud (VPC)
-* Public and private subnets
-* Network Address Translation (NAT) Gateway
-* Kubernetes cluster (EKS)
-* IAM (Identity and Access Management) roles
-* Amazon Elastic Container Registry (ECR)
-* Bastion host for secure access
-
-👉 **Real-World Example:**
-Like the blueprint and construction of a building before operations start.
+* **ServiceMonitor** → connects Prometheus to FastAPI
+* **PrometheusRule** → defines alert conditions
+* **Probe** → monitors website uptime
 
 ---
 
-## 🔹 6. CI/CD Layer (Automation System)
+## **End-to-End Flow (Simplified)**
 
-* Implemented using **GitHub Actions (CI/CD platform)**
+1. User sends request → Ingress Controller
+2. Request routed to:
 
-### 📌 What it does:
-
-* Builds Docker images automatically
-* Pushes them to Amazon Elastic Container Registry (ECR)
-* Deploys applications to Kubernetes using Helm
-* Uses **OpenID Connect (OIDC)** for secure authentication
-
-👉 **Real-World Example:**
-Like an automatic machine that:
-
-* Updates software
-* Deploys changes
-* Without manual intervention
+   * Website or FastAPI
+3. FastAPI exposes metrics
+4. Prometheus collects metrics
+5. Grafana visualizes data
+6. Alerts triggered via Alertmanager if thresholds exceed
 
 ---
 
-## 🔹 End-to-End Flow (Quick Summary)
+### **Architecture Summary**
 
-1. User sends request → goes to Load Balancer
-2. Ingress routes request to correct service
-3. Application processes the request
-4. Kubernetes ensures system stability
-5. Monitoring tools track performance
-6. CI/CD keeps system updated automatically
+> The architecture integrates infrastructure, deployment, application, and observability into a unified system where everything is automated, monitored, and easily accessible.
 
 ---
-# 6. Tech Stack
+## 6. Technology Stack
 
-| **Category**                  | **Technology**                                                                            | **Purpose / Explanation**                                                                            |
-| ----------------------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| **Cloud Platform**            | Amazon Web Services (AWS)                                                                 | Provides the cloud environment where the entire system (servers, networking, storage) is hosted.     |
-| **Container Registry**        | Amazon Elastic Container Registry (ECR)                                                   | Stores Docker images securely so they can be used for deployment.                                    |
-| **Containerization**          | Docker (Container Platform)                                                               | Packages applications into containers so they run consistently across different environments.        |
-| **Orchestration**             | Kubernetes (Container Orchestration Platform) via Amazon Elastic Kubernetes Service (EKS) | Manages, scales, and maintains containerized applications automatically.                             |
-| **Infrastructure Automation** | Terraform (Infrastructure as Code - IaC)                                                  | Automates the creation of cloud infrastructure such as networks, Kubernetes clusters, and resources. |
-| **CI/CD Pipeline**            | GitHub Actions (Continuous Integration and Continuous Deployment - CI/CD)                 | Automates building, testing, and deploying the application whenever changes are made.                |
-| **Authentication & Security** | AWS Identity and Access Management (IAM) + OpenID Connect (OIDC)                          | Provides secure access control and enables authentication without storing sensitive credentials.     |
-| **Backend Application**       | FastAPI (Python Web Framework)                                                            | Handles API requests and provides application logic along with performance metrics.                  |
-| **Frontend Application**      | Nginx (Web Server)                                                                        | Serves the static website content to users.                                                          |
-| **Deployment Tool**           | Helm (Kubernetes Package Manager)                                                         | Simplifies application deployment and management on Kubernetes using reusable templates.             |
-| **Traffic Routing**           | NGINX Ingress Controller (Traffic Manager)                                                | Routes incoming user requests to the correct service inside the Kubernetes cluster.                  |
-| **Monitoring**                | Prometheus (Monitoring Tool)                                                              | Collects and stores system and application performance metrics.                                      |
-| **Visualization**             | Grafana (Visualization Tool)                                                              | Displays metrics in the form of dashboards for easy understanding and analysis.                      |
-| **Alerting**                  | Alertmanager (Alerting System)                                                            | Sends alerts or notifications when system issues or failures are detected.                           |
-| **Metrics Exporter**          | Prometheus FastAPI Instrumentator (Metrics Exporter)                                      | Exposes application metrics from FastAPI so they can be monitored by Prometheus.                     |
+### **Overview**
 
----
-# 7. Repository Structure (tree format)
-The following structure shows how the project is organized into different folders. Each folder has a specific responsibility, making the project easy to understand and maintain.
+The project uses a combination of **cloud services, DevOps tools, and monitoring technologies** to build a complete cloud-native observability platform.
 
-```bash
-.
-├── .github/
-│   └── workflows/
-│       └── deploy.yml              # CI/CD pipeline (GitHub Actions → ECR → EKS)
-│
-├── apps/
-│   ├── fastapi/
-│   │   ├── Dockerfile              # FastAPI container image
-│   │   ├── main.py                 # API + Prometheus instrumentation
-│   │   └── requirements.txt
-│   │
-│   └── website/
-│       ├── Dockerfile              # Nginx-based static site
-│       └── index.html
-│
-├── helm/
-│   ├── fastapi/                    # Helm chart for FastAPI service
-│   │   ├── Chart.yaml
-│   │   ├── values.yaml
-│   │   └── templates/
-│   │       ├── deployment.yaml
-│   │       ├── service.yaml
-│   │       └── ingress.yaml
-│   │
-│   ├── website/                    # Helm chart for website
-│   │   ├── Chart.yaml
-│   │   ├── values.yaml
-│   │   └── templates/
-│   │       ├── deployment.yaml
-│   │       ├── service.yaml
-│   │       └── ingress.yaml
-│   │
-│   ├── kube-prometheus-stack/
-│   │   └── values.yaml             # Observability configuration
-│   │
-│   └── observability-ingress.yaml  # Optional ingress for monitoring tools
-│
-├── terraform/
-│   ├── infra/                      # Core AWS infrastructure
-│   │   ├── main.tf
-│   │   ├── providers.tf
-│   │   ├── variables.tf
-│   │   ├── outputs.tf
-│   │   └── modules/
-│   │       ├── network/            # VPC, subnets, routing
-│   │       ├── iam/                # IAM roles (EKS, GitHub Actions, nodes)
-│   │       ├── eks/                # EKS cluster + node group
-│   │       ├── ecr/                # ECR repositories
-│   │       └── bastion/            # Bastion host for cluster access
-│   │
-│   └── apps/                       # Kubernetes + observability layer
-│       ├── main.tf
-│       ├── providers.tf
-│       ├── remote-state.tf         # Reads infra outputs
-│       ├── kubernetes-auth.tf      # aws-auth ConfigMap
-│       └── modules/
-│           ├── ingress-nginx/      # NGINX Ingress Controller (Helm)
-│           ├── observability/      # Prometheus, Grafana, Alertmanager
-│           │   ├── helm-kube-prometheus.tf
-│           │   └── grafana/
-│           │       └── dashboards/
-│           └── observability-routing/ # Ingress + proxy services
-│
-└── README.md                      # Project documentation
-```
+The technologies are organized below based on their roles in the system.
 
 ---
 
-## 🔹 Folder Explanation (Simple Understanding)
+### **Technology Stack Table**
 
-### 📁 `.github/workflows/`
-
-* Contains **GitHub Actions (Continuous Integration and Continuous Deployment - CI/CD)** pipeline
-* Automatically builds and deploys the project
-
-👉 *Example:* Like an automatic system that updates your application whenever code changes
-
----
-
-### 📁 `apps/`
-
-* Contains the **actual application code**
-
-#### Inside this folder:
-
-* **fastapi/** → Backend application
-* **website/** → Frontend static website
-
-👉 *In simple terms:* This is where your main application lives
-
----
-
-### 📁 `helm/`
-
-* Contains configuration files for **Helm (Kubernetes Package Manager)**
-* Used to deploy applications on Kubernetes easily
-
-👉 *Example:* Like templates used to install and manage applications
+| **Category**                     | **Technology**                          | **Description / Purpose**                                                  |
+| -------------------------------- | --------------------------------------- | -------------------------------------------------------------------------- |
+| **Cloud Provider**               | Amazon Web Services (AWS)               | Provides scalable cloud infrastructure and managed services                |
+| **Container Orchestration**      | Amazon Elastic Kubernetes Service (EKS) | Managed Kubernetes service to deploy and manage containerized applications |
+| **Containerization**             | Docker                                  | Packages applications into containers for consistency and portability      |
+| **Infrastructure as Code (IaC)** | Terraform                               | Automates provisioning of cloud resources like VPC, EKS, IAM               |
+| **CI/CD Pipeline**               | GitHub Actions                          | Automates build, push, and deployment workflows                            |
+| **Container Registry**           | Amazon Elastic Container Registry (ECR) | Stores Docker images securely                                              |
+| **Backend Framework**            | FastAPI                                 | Lightweight Python framework for building APIs                             |
+| **Web Server**                   | NGINX                                   | Serves the static website and acts as a reverse proxy                      |
+| **Package Manager (Kubernetes)** | Helm                                    | Simplifies Kubernetes application deployment and management                |
+| **Ingress Controller**           | NGINX Ingress Controller                | Routes external traffic to internal Kubernetes services                    |
+| **Monitoring System**            | Prometheus                              | Collects and stores application and system metrics                         |
+| **Visualization Tool**           | Grafana                                 | Displays metrics using dashboards                                          |
+| **Alerting System**              | Alertmanager                            | Sends alerts based on defined conditions                                   |
+| **Blackbox Monitoring**          | Prometheus Blackbox Exporter            | Monitors external service availability (e.g., website uptime)              |
+| **Kubernetes Monitoring CRDs**   | ServiceMonitor, PrometheusRule, Probe   | Custom resources for integrating monitoring and alerting                   |
+| **Version Control**              | GitHub                                  | Hosts source code and triggers CI/CD pipeline                              |
+| **Authentication**               | OpenID Connect (OIDC)                   | Enables secure authentication between GitHub Actions and AWS               |
+| **State Management**             | Amazon S3                               | Stores Terraform state files                                               |
+| **State Locking**                | Amazon DynamoDB                         | Prevents concurrent Terraform executions                                   |
+| **Compute Instance**             | Bastion Host (EC2)                      | Provides secure administrative access to the cluster                       |
 
 ---
 
-### 📁 `terraform/`
+### **Key Takeaway**
 
-* Contains infrastructure setup using **Terraform (Infrastructure as Code - IaC)**
-
-#### Two main parts:
-
-* **infra/** → Creates cloud infrastructure (network, EKS, IAM, etc.)
-* **apps/** → Deploys applications and monitoring tools
-
-👉 *Example:* Like the blueprint and construction plan of the system
+> The technology stack combines modern DevOps, cloud, and observability tools to create a fully automated and production-ready environment.
 
 ---
 
-### 📁 Observability Components (Inside Helm & Terraform)
+## 7. Methodology & Workflow
 
+### **Overview**
+
+The methodology of this project follows a **DevOps-driven, cloud-native approach**, where the entire lifecycle of the application is:
+
+* Designed
+* Built
+* Deployed
+* Monitored
+* Continuously improved
+
+This ensures automation, consistency, and real-time visibility.
+
+---
+
+## **Step-by-Step Workflow**
+
+The complete workflow can be divided into the following stages:
+
+---
+
+### **1. Infrastructure Provisioning**
+
+* Infrastructure is defined using **Terraform (Infrastructure as Code - IaC)**
+* Key resources created:
+
+  * Virtual Private Cloud (VPC)
+  * Subnets (public and private)
+  * Amazon EKS cluster
+  * IAM roles and permissions
+
+👉 This step ensures that the environment is **consistent and reproducible**
+
+---
+
+### **2. Application Development**
+
+* Backend developed using **FastAPI**
+* Frontend created as a **static website (HTML + NGINX)**
+* Applications are designed to:
+
+  * Be lightweight
+  * Expose health and metrics endpoints
+
+---
+
+### **3. Containerization**
+
+* Applications are packaged into **Docker containers**
+* Each service has its own Docker image:
+
+  * FastAPI image
+  * Website image
+
+👉 This ensures portability across environments
+
+---
+
+### **4. Version Control & Code Management**
+
+* Source code is managed using **GitHub**
+* Developers push changes to the repository
+
+👉 Every code change becomes a trigger for automation
+
+---
+
+### **5. CI/CD Pipeline Execution**
+
+* **GitHub Actions** automatically:
+
+  1. Builds Docker images
+  2. Tags images using commit SHA
+  3. Pushes images to Amazon ECR
+  4. Deploys applications using Helm
+
+👉 This eliminates manual deployment and reduces errors
+
+---
+
+### **6. Kubernetes Deployment**
+
+* Applications are deployed to **Amazon EKS** using **Helm charts**
+* Kubernetes manages:
+
+  * Pods (application instances)
+  * Services (network access)
+  * Ingress (external routing)
+
+👉 Ensures scalability and self-healing capabilities
+
+---
+
+### **7. Traffic Routing**
+
+* **NGINX Ingress Controller** routes incoming traffic:
+
+  * `/` → Website
+  * `/api` → FastAPI
+
+👉 Provides a unified entry point for all services
+
+---
+
+### **8. Monitoring & Observability**
+
+* **Prometheus** collects metrics from:
+
+  * FastAPI (`/metrics`)
+  * Kubernetes resources
+
+* **Grafana** visualizes metrics through dashboards
+
+👉 Enables real-time performance tracking
+
+---
+
+### **9. Alerting Mechanism**
+
+* **Prometheus** evaluates alert rules
+* Alerts are sent to **Alertmanager**
+* Alertmanager sends notifications via **email**
+
+👉 Ensures quick response to system issues
+
+---
+
+### **10. External Health Monitoring**
+
+* **Blackbox Exporter** periodically checks:
+
+  * Website availability
+* Alerts are triggered if the service is unreachable
+
+---
+
+## **Workflow Summary (Simplified Flow)**
+
+1. Developer pushes code → GitHub
+2. CI/CD pipeline builds & deploys application
+3. Application runs on EKS
+4. Prometheus collects metrics
+5. Grafana displays system performance
+6. Alerts triggered when issues occur
+
+---
+
+### **Key Methodological Approach**
+
+* **Automation First** → Reduce manual work
+* **Observability by Design** → Monitoring built into the system
+* **Modular Architecture** → Independent components
+* **Continuous Feedback Loop** → Monitor → Detect → Improve
+
+---
+
+### **In Simple Words**
+
+> The project follows a workflow where everything is automated, continuously monitored, and designed to quickly detect and respond to issues.
+
+---
+
+## 8. Infrastructure Design (Terraform)
+
+### **Overview**
+
+The infrastructure for this project is designed using **Terraform**, an **Infrastructure as Code (IaC)** tool that allows cloud resources to be defined, provisioned, and managed through code.
+
+This approach ensures:
+
+* Consistency across environments
+* Automated provisioning
+* Easy scalability and maintenance
+
+The infrastructure is organized into two main layers:
+
+1. **Core Infrastructure (`infra`)**
+2. **Application & Platform Layer (`apps`)**
+
+---
+
+## **1. Core Infrastructure Layer (`terraform/infra`)**
+
+This layer is responsible for creating the **foundation of the system on AWS**.
+
+---
+
+### **a. Networking (VPC Setup)**
+
+A custom **Virtual Private Cloud (VPC)** is created with:
+
+* **Public Subnets**
+
+  * Used for:
+
+    * Internet Gateway
+    * NAT Gateway
+    * Bastion Host
+
+* **Private Subnets**
+
+  * Used for:
+
+    * EKS cluster
+    * Worker nodes
+
+* **Internet Gateway**
+
+  * Allows external traffic into the VPC
+
+* **NAT Gateway**
+
+  * Allows private resources to access the internet securely
+
+👉 This ensures **secure isolation of internal services**
+
+---
+
+### **b. Amazon EKS Cluster**
+
+* A managed Kubernetes cluster is created using **Amazon EKS**
 * Includes:
 
-  * **Prometheus (Monitoring Tool)**
-  * **Grafana (Visualization Tool)**
-  * **Alertmanager (Alerting System)**
+  * Control plane (managed by AWS)
+  * Node group (EC2 instances for workloads)
 
-👉 *Purpose:* To monitor system performance and detect issues
+**Node Group Configuration:**
 
----
-
-### 📄 `README.md`
-
-* Contains complete project documentation
-* Helps users understand and run the project
-
----
-# 8. Prerequisites
-
-Before setting up and deploying this project, ensure that the following tools, accounts, and configurations are available.
+* Auto-scaling enabled (min, max, desired capacity)
+* Runs application workloads
 
 ---
 
-### 📘 Setup Guide (Recommended)
+### **c. IAM (Identity and Access Management)**
 
-A detailed step-by-step guide is provided to help you install and configure everything from scratch:
+IAM roles are created for secure access:
 
-* 📄 **Setup Guide:** [`Setup Guide.pdf`](./Setup%20Guide.pdf)
+* **EKS Cluster Role**
+* **Worker Node Role**
+* **GitHub Actions Role (OIDC-based)**
+* **Bastion Host Role**
 
-👉 *This document explains complete setup including tool installation, AWS configuration, and deployment steps.*
-
----
-
-## 🔧 Required Tools
-
-The following tools must be installed on your system:
-
-| **Tool**                                     | **Purpose**                                                       | **Verification Command**   |
-| -------------------------------------------- | ----------------------------------------------------------------- | -------------------------- |
-| **AWS Command Line Interface (AWS CLI)**     | Used to interact with Amazon Web Services (AWS) from the terminal | `aws configure`            |
-| **Terraform (Infrastructure as Code - IaC)** | Used to create and manage cloud infrastructure automatically      | `terraform -version`       |
-| **kubectl (Kubernetes Command Line Tool)**   | Used to interact with Kubernetes clusters                         | `kubectl version --client` |
-| **Helm (Kubernetes Package Manager)**        | Used to deploy applications on Kubernetes easily                  | `helm version`             |
-| **Docker (Container Platform)**              | Used to build and run containerized applications                  | `docker version`           |
-| **Git (Version Control System)**             | Used to clone and manage project code                             | `git --version`            |
+👉 Enables **secure, role-based access control**
 
 ---
 
-## ☁️ Cloud Requirements (Amazon Web Services - AWS)
+### **d. Bastion Host**
 
-You must have an active **Amazon Web Services (AWS)** account with permissions to create:
+* An EC2 instance deployed in a public subnet
+* Used for:
 
-* Virtual Private Cloud (VPC)
-* Subnets and networking components
-* Network Address Translation (NAT) Gateway
-* Amazon Elastic Kubernetes Service (EKS) cluster and node groups
-* AWS Identity and Access Management (IAM) roles and policies
-* Amazon Elastic Container Registry (ECR) repositories
-* Load Balancers
-
-### 📌 Additional Requirement:
-
-* AWS region should be configured (default used: `us-east-1`)
+  * Secure access to the Kubernetes cluster
+  * Running administrative commands (kubectl, helm)
 
 ---
 
-## 🔐 GitHub Requirements
+### **e. Amazon ECR (Elastic Container Registry)**
 
-You need a GitHub repository with:
+* Stores Docker images for:
 
-* **GitHub Actions (Continuous Integration and Continuous Deployment - CI/CD)** enabled
-* Permission to configure **OpenID Connect (OIDC)** authentication with AWS
+  * FastAPI application
+  * Website
+
+👉 Acts as a central image repository for deployments
 
 ---
 
-## 🔑 Secure Access (SSH Key for Bastion Host)
+### **f. Remote State Management**
 
-To securely access the system, an SSH key is required.
+Terraform state is managed using:
 
-### 📌 Check if key exists:
+* **Amazon S3**
 
-```bash
-~/.ssh/eks-bastion.pub
+  * Stores state files
+
+* **Amazon DynamoDB**
+
+  * Provides state locking
+
+👉 Prevents conflicts during concurrent deployments
+
+---
+
+## **2. Application & Platform Layer (`terraform/apps`)**
+
+This layer configures and deploys **Kubernetes-based services** on the EKS cluster.
+
+---
+
+### **a. Kubernetes Access Configuration**
+
+* Uses remote state from `infra` to:
+
+  * Connect to EKS cluster
+  * Configure authentication
+
+* Updates **aws-auth ConfigMap** to:
+
+  * Grant access to nodes
+  * Allow GitHub Actions to deploy
+
+---
+
+### **b. NGINX Ingress Controller**
+
+* Installed using **Helm**
+* Configured as:
+
+  * **LoadBalancer service**
+* Acts as:
+
+  * Entry point for all external traffic
+
+---
+
+### **c. Observability Module**
+
+Deploys the monitoring stack:
+
+* **Prometheus + Grafana + Alertmanager**
+* **Blackbox Exporter**
+
+Also configures:
+
+* Dashboards
+* Alert rules
+* Metrics scraping
+
+---
+
+### **d. Observability Routing**
+
+* Uses:
+
+  * **ExternalName services**
+  * **Ingress resources**
+
+* Exposes:
+
+  * Grafana → `/grafana`
+  * Prometheus → `/prometheus`
+  * Alertmanager → `/alertmanager`
+
+👉 Enables centralized access to monitoring tools
+
+---
+
+## **Modular Design Approach**
+
+The Terraform code is structured into reusable modules:
+
+* `network` → VPC and subnets
+* `iam` → Roles and permissions
+* `eks` → Kubernetes cluster
+* `bastion` → Admin access
+* `ecr` → Container registry
+* `observability` → Monitoring stack
+* `ingress-nginx` → Traffic routing
+
+👉 Improves maintainability and scalability
+
+---
+
+## **Infrastructure Workflow**
+
+1. Terraform provisions AWS infrastructure
+2. EKS cluster is created and configured
+3. Kubernetes providers connect to the cluster
+4. Helm deploys platform components
+5. Applications are later deployed via CI/CD
+
+---
+
+### **Key Design Principles**
+
+* **Infrastructure as Code** → Everything is version-controlled
+* **Modularity** → Components are reusable and independent
+* **Security** → Private subnets and IAM roles
+* **Scalability** → EKS + node groups
+* **Automation** → Minimal manual intervention
+
+---
+
+### **In Simple Words**
+
+> Terraform builds the entire cloud environment from scratch, ensuring everything is automated, secure, and ready for application deployment.
+
+---
+
+## 9. CI/CD Pipeline
+
+### **Overview**
+
+The project uses a **CI/CD pipeline (Continuous Integration and Continuous Deployment)** implemented with **GitHub Actions** to automate the entire application deployment process.
+
+This pipeline ensures that every code change is:
+
+* Automatically built
+* Tested (implicitly via build success)
+* Deployed to the Kubernetes cluster
+
+👉 This reduces manual effort and improves reliability.
+
+---
+
+## **Key Components of the Pipeline**
+
+| **Component**                               | **Role**                                     |
+| ------------------------------------------- | -------------------------------------------- |
+| **GitHub**                                  | Source code repository and trigger point     |
+| **GitHub Actions**                          | Executes the CI/CD workflow                  |
+| **Docker**                                  | Builds container images                      |
+| **Amazon ECR (Elastic Container Registry)** | Stores Docker images                         |
+| **Amazon EKS**                              | Runs the deployed applications               |
+| **Helm**                                    | Manages Kubernetes deployments               |
+| **OIDC (OpenID Connect)**                   | Secure authentication between GitHub and AWS |
+
+---
+
+## **Pipeline Trigger**
+
+* The pipeline is triggered when:
+
+  * Code is pushed to the **main branch**
+
+👉 This ensures continuous deployment of the latest changes
+
+---
+
+## **Step-by-Step Pipeline Workflow**
+
+### **1. Code Checkout**
+
+* GitHub Actions fetches the latest code from the repository
+
+---
+
+### **2. AWS Authentication (OIDC)**
+
+* Uses **OpenID Connect (OIDC)** to securely assume an AWS IAM role
+* No hardcoded credentials are required
+
+👉 Enhances security and follows best practices
+
+---
+
+### **3. Docker Image Build**
+
+Two images are built:
+
+* **FastAPI Application Image**
+* **Website Image**
+
+Each image is:
+
+* Built using its respective Dockerfile
+* Tagged with the **commit SHA** (unique identifier)
+
+---
+
+### **4. Push Images to Amazon ECR**
+
+* Images are pushed to:
+
+  * Amazon Elastic Container Registry (ECR)
+
+👉 Makes images available for deployment in Kubernetes
+
+---
+
+### **5. Connect to EKS Cluster**
+
+* The pipeline updates **kubeconfig** using AWS CLI
+* This allows GitHub Actions to interact with the Kubernetes cluster
+
+---
+
+### **6. Helm Deployment**
+
+* Applications are deployed using **Helm charts**
+
+* Commands used:
+
+  * `helm upgrade --install`
+
+* Dynamic values passed:
+
+  * Image repository
+  * Image tag (commit SHA)
+
+👉 Enables versioned and repeatable deployments
+
+---
+
+## **Deployment Strategy**
+
+* Uses **rolling updates** (default Kubernetes behavior)
+* Ensures:
+
+  * Zero downtime
+  * Smooth updates
+
+---
+
+## **Pipeline Flow Summary**
+
+1. Developer pushes code to GitHub
+2. GitHub Actions pipeline starts
+3. Docker images are built
+4. Images are pushed to ECR
+5. Helm deploys applications to EKS
+6. Updated application becomes live
+
+---
+
+### **Key Advantages**
+
+* 🔄 **Automation** → No manual deployment required
+* 🔐 **Security** → Uses OIDC instead of static credentials
+* 📦 **Version Control** → Image tagging with commit SHA
+* ⚡ **Fast Deployment** → Changes go live quickly
+* 🔁 **Consistency** → Same process for every deployment
+
+---
+
+### **In Simple Words**
+
+> The CI/CD pipeline automatically takes your code, turns it into a running application, and deploys it to the cloud every time you make a change.
+
+---
+
+## 10. Kubernetes Deployment (Helm)
+
+### **Overview**
+
+In this project, applications are deployed on Kubernetes using **Helm**, a package manager for Kubernetes that simplifies deployment and management of applications.
+
+Helm allows us to:
+
+* Define Kubernetes resources as reusable templates
+* Manage configurations easily
+* Perform upgrades and rollbacks efficiently
+
+👉 This makes deployments **consistent, scalable, and maintainable**
+
+---
+
+## **What is Helm (Simple Explanation)**
+
+Helm works like a package manager (similar to npm or apt), but for Kubernetes.
+
+* A **Helm Chart** is a collection of Kubernetes YAML templates
+* It allows dynamic configuration using values
+
+---
+
+## **Helm Charts Used in the Project**
+
+The project uses two custom Helm charts:
+
+| **Application** | **Chart Location** | **Purpose**                 |
+| --------------- | ------------------ | --------------------------- |
+| FastAPI Backend | `helm/fastapi`     | Deploys backend API service |
+| Website         | `helm/website`     | Deploys static frontend     |
+
+---
+
+## **Key Kubernetes Resources Created**
+
+Each Helm chart defines the following core resources:
+
+---
+
+### **1. Deployment**
+
+* Manages application pods
+* Ensures desired number of replicas are running
+
+**FastAPI Example:**
+
+* Multiple replicas for scalability
+* Includes:
+
+  * **Liveness Probe** → checks if app is alive
+  * **Readiness Probe** → checks if app is ready to serve traffic
+
+👉 Helps Kubernetes automatically recover from failures
+
+---
+
+### **2. Service**
+
+* Exposes the application internally within the cluster
+* Uses:
+
+  * **ClusterIP** (internal access)
+
+👉 Enables communication between services
+
+---
+
+### **3. Ingress**
+
+* Provides external access to services via HTTP/HTTPS
+* Managed by **NGINX Ingress Controller**
+
+**Routing Rules:**
+
+* `/` → Website
+* `/api` → FastAPI backend
+
+👉 Acts as a **single entry point** for users
+
+---
+
+## **Configuration Using Values.yaml**
+
+Each Helm chart uses a `values.yaml` file to define:
+
+* Number of replicas
+* Container image details
+* Ports
+* Labels
+
+Example:
+
+* FastAPI runs on port **8000**
+* Website runs on port **80**
+
+👉 Allows easy customization without modifying templates
+
+---
+
+## **Dynamic Deployment via CI/CD**
+
+During deployment, Helm receives dynamic values:
+
+* Image repository (from ECR)
+* Image tag (commit SHA)
+
+This ensures:
+
+* Every deployment uses the latest image
+* Version tracking is maintained
+
+---
+
+## **Deployment Command**
+
+The CI/CD pipeline uses:
+
+```
+helm upgrade --install <release-name> <chart-path>
 ```
 
-### 📌 If not, generate one:
+This command:
 
-```bash
-ssh-keygen -t rsa -b 4096 -f ~/.ssh/eks-bastion
+* Installs the application if not present
+* Upgrades it if already deployed
+
+---
+
+## **Deployment Workflow**
+
+1. Helm reads chart templates
+2. Values are injected dynamically
+3. Kubernetes resources are created/updated
+4. Pods are scheduled and started
+5. Services and ingress expose the application
+
+---
+
+## **Key Benefits of Using Helm**
+
+* 📦 **Reusability** → Templates can be reused across environments
+* 🔄 **Easy Updates** → Upgrade without downtime
+* ⚙️ **Configuration Management** → Centralized values
+* 📊 **Scalability** → Easily adjust replicas
+* 🔁 **Rollback Support** → Revert to previous versions
+
+---
+
+### **In Simple Words**
+
+> Helm simplifies Kubernetes deployment by packaging everything into reusable templates, making application deployment fast, consistent, and easy to manage.
+
+---
+
+## 11. Observability Implementation
+
+### **Overview**
+
+Observability is a key part of this project. It ensures that the system is not only running, but also **measurable, visible, and understandable in real time**.
+
+The project implements observability using three main pillars:
+
+* **Metrics** → What is happening in the system
+* **Visualization** → How the system is performing
+* **Alerting** → When something goes wrong
+
+This is achieved using:
+
+* **Prometheus**
+* **Grafana**
+* **Alertmanager**
+
+---
+
+## **1. Metrics Collection (Prometheus)**
+
+### **What is Prometheus?**
+
+Prometheus is an open-source monitoring system that:
+
+* Collects metrics from applications
+* Stores them as time-series data
+* Allows querying using PromQL (Prometheus Query Language)
+
+---
+
+### **How Metrics are Collected**
+
+#### **FastAPI Instrumentation**
+
+* The FastAPI application is instrumented using:
+
+  * `prometheus-fastapi-instrumentator`
+
+* It exposes a `/metrics` endpoint automatically
+
+👉 This endpoint provides data such as:
+
+* Request count
+* Response status codes
+* Request latency
+
+---
+
+#### **Service Monitoring (ServiceMonitor)**
+
+* A **ServiceMonitor** resource is created in Kubernetes
+* It tells Prometheus:
+
+  * Which service to monitor
+  * Where to scrape metrics from
+
+**Configuration Highlights:**
+
+* Scrape interval: 15 seconds
+* Target: FastAPI service
+
+---
+
+#### **Kubernetes Metrics**
+
+Prometheus also collects:
+
+* CPU usage
+* Memory usage
+* Pod and node metrics
+
+---
+
+## **2. Visualization (Grafana)**
+
+### **What is Grafana?**
+
+Grafana is a visualization tool that:
+
+* Connects to Prometheus
+* Displays data using dashboards
+
+---
+
+### **Custom Dashboard (Golden Signals)**
+
+A custom dashboard is created to monitor key system metrics:
+
+#### **Golden Signals Covered**
+
+| **Metric**             | **Description**               |
+| ---------------------- | ----------------------------- |
+| **Traffic (RPS)**      | Number of requests per second |
+| **Error Rate**         | Rate of failed (5xx) requests |
+| **Latency (P95, P99)** | Response time distribution    |
+| **CPU Usage**          | Resource utilization          |
+| **Memory Usage**       | Memory consumption            |
+
+👉 These metrics provide a **complete view of system health**
+
+---
+
+### **Dashboard Deployment**
+
+* Dashboards are defined as JSON
+* Stored in a Kubernetes **ConfigMap**
+* Automatically loaded into Grafana using a sidecar
+
+---
+
+## **3. External Monitoring (Blackbox Exporter)**
+
+### **Purpose**
+
+* Monitors **service availability from outside the system**
+
+---
+
+### **How it Works**
+
+* Sends HTTP requests to the website
+
+* Measures:
+
+  * Response success
+  * Availability
+
+* Uses a **Probe resource** to define:
+
+  * Target URL
+  * Check interval
+
+---
+
+## **4. Alerting Integration (Overview)**
+
+* Prometheus evaluates predefined rules
+* Alerts are sent to **Alertmanager**
+* Notifications are delivered via email
+
+👉 Detailed alert logic is covered in the next section
+
+---
+
+## **5. Observability Flow**
+
+1. FastAPI exposes metrics (`/metrics`)
+2. Prometheus scrapes metrics periodically
+3. Data is stored as time-series
+4. Grafana queries and visualizes data
+5. Alerts are triggered if thresholds are exceeded
+
+---
+
+## **Key Design Principles**
+
+* **Built-in Observability** → Metrics integrated into the application
+* **Real-Time Monitoring** → Continuous data collection
+* **Actionable Insights** → Dashboards + alerts
+* **External Validation** → Blackbox monitoring
+
+---
+
+### **In Simple Words**
+
+> Observability in this project ensures that you can see how your system is performing, understand what is happening inside it, and get alerted immediately when something goes wrong.
+
+---
+
+## 12. Alerts & Monitoring Strategy
+
+### **Overview**
+
+The project implements a structured **monitoring and alerting strategy** to ensure that system issues are detected early and handled efficiently.
+
+This strategy is built using:
+
+* **Prometheus** → Evaluates conditions and generates alerts
+* **Alertmanager** → Processes and sends notifications
+* **Grafana** → Visualizes system health
+
+---
+
+## **1. Alerting Strategy Design**
+
+The alerting system is designed around three key goals:
+
+* 🔍 **Early Detection** → Identify issues before they impact users
+* ⚠️ **Actionable Alerts** → Provide meaningful alerts, not noise
+* 📩 **Timely Notifications** → Inform the team immediately
+
+---
+
+## **2. Types of Alerts Implemented**
+
+### **A. Application-Level Alerts (FastAPI)**
+
+These alerts monitor the health and performance of the backend service.
+
+| **Alert Name**  | **Condition**           | **Purpose**             |
+| --------------- | ----------------------- | ----------------------- |
+| High Error Rate | Too many 5xx responses  | Detect backend failures |
+| High Latency    | P95 latency > threshold | Detect slow responses   |
+| Service Down    | No running replicas     | Detect complete outage  |
+
+👉 Ensures the API is **available, fast, and reliable**
+
+---
+
+### **B. Website Availability Alerts**
+
+* Uses **Blackbox Exporter** to simulate real user access
+* Alert triggers when:
+
+  * Website is not reachable via HTTP
+
+👉 Ensures **end-user accessibility**
+
+---
+
+### **C. Infrastructure-Level Alerts (Kubernetes)**
+
+These come from the **kube-prometheus-stack** and monitor cluster components.
+
+However, some alerts behave differently in **Amazon EKS (Elastic Kubernetes Service)**.
+
+---
+
+## **3. Special Alerts in EKS (Important Understanding)**
+
+Based on your provided document , some alerts appear even when the system is healthy.
+
+---
+
+### **1. KubeControllerManagerDown**
+
+* **What it means:** Controller Manager is not detected
+* **Reason:** In EKS, it is managed by AWS and not visible inside the cluster
+* **Interpretation:**
+
+  * ✅ Normal behavior
+  * ❌ Not an actual failure
+
+---
+
+### **2. KubeSchedulerDown**
+
+* **What it means:** Scheduler is not detected
+* **Reason:** Also managed externally by AWS
+* **Interpretation:**
+
+  * ✅ Normal behavior
+  * ❌ Not a real issue
+
+---
+
+### **3. Watchdog Alert**
+
+* **What it means:** A test alert to verify alerting system health
+
+* **Behavior:** Always active
+
+* **Interpretation:**
+
+  * ✅ Confirms alerting pipeline is working
+  * ❗ Should NOT be disabled
+
+---
+
+### **Summary of These Alerts**
+
+| **Alert**                 | **Meaning**                       | **Is it Normal?** | **Action**   |
+| ------------------------- | --------------------------------- | ----------------- | ------------ |
+| KubeControllerManagerDown | AWS-managed component not visible | Yes               | Ignore       |
+| KubeSchedulerDown         | AWS-managed component not visible | Yes               | Ignore       |
+| Watchdog                  | System health check               | Yes               | Keep enabled |
+
+---
+
+## **4. Alert Flow**
+
+1. Prometheus continuously evaluates metrics
+2. If a condition is met → alert is triggered
+3. Alert is sent to **Alertmanager**
+4. Alertmanager:
+
+   * Groups alerts
+   * Applies rules
+   * Sends email notifications
+
+---
+
+## **5. Notification Configuration**
+
+* Alerts are sent via **email (SMTP configuration)**
+* Includes:
+
+  * Alert name
+  * Description
+  * Severity level
+
+👉 Ensures quick awareness of system issues
+
+---
+
+## **6. Alert Severity Levels**
+
+* **Warning** → Performance issues (e.g., latency, error rate)
+* **Critical** → Service down or unavailable
+
+---
+
+## **7. Monitoring Strategy Summary**
+
+The monitoring system combines:
+
+* 📊 **Metrics Monitoring** → Prometheus
+* 📈 **Visualization** → Grafana
+* 🚨 **Alerting** → Alertmanager
+* 🌐 **External Checks** → Blackbox Exporter
+
+---
+
+### **Key Insight**
+
+> Not all alerts indicate real problems — especially in managed environments like EKS. Understanding context is essential to avoid false alarms.
+
+---
+
+### **In Simple Words**
+
+> The system continuously watches application performance and automatically alerts you when something goes wrong, while also filtering out expected behavior in managed cloud environments.
+
+---
+## 13. Results & Discussion
+
+### **Overview**
+
+This section evaluates the outcomes of the implemented system and discusses how effectively the project meets its objectives.
+
+The results demonstrate that the platform successfully delivers a **fully functional, automated, and observable cloud-native environment**.
+
+---
+
+## **1. Deployment Results**
+
+* Applications (FastAPI and Website) were successfully:
+
+  * Containerized using Docker
+  * Deployed on Amazon EKS using Helm
+
+* The CI/CD pipeline:
+
+  * Automatically builds and deploys applications
+  * Ensures consistent and repeatable deployments
+
+👉 Result: **Zero manual deployment effort after initial setup**
+
+---
+
+## **2. Infrastructure Validation**
+
+* Terraform successfully provisioned:
+
+  * VPC and networking components
+  * EKS cluster and node groups
+  * IAM roles and permissions
+
+* Remote state management using:
+
+  * Amazon S3 (storage)
+  * DynamoDB (locking)
+
+👉 Result: **Reliable and reproducible infrastructure setup**
+
+---
+
+## **3. Observability Outcomes**
+
+### **Metrics Collection**
+
+* Prometheus successfully collected:
+
+  * API request metrics
+  * Response status codes
+  * Latency data
+  * Resource utilization (CPU, memory)
+
+---
+
+### **Visualization**
+
+* Grafana dashboards displayed:
+
+  * Real-time system performance
+  * Golden signals (traffic, errors, latency, saturation)
+
+👉 Result: **Clear and actionable visibility into system behavior**
+
+---
+
+### **Alerting**
+
+* Alertmanager successfully triggered alerts for:
+
+  * High error rates
+  * High latency
+  * Service downtime
+  * Website unavailability
+
+* Email notifications were delivered correctly
+
+👉 Result: **Effective real-time alerting system**
+
+---
+
+## **4. System Behavior Under Monitoring**
+
+The system was able to:
+
+* Detect abnormal conditions (e.g., increased latency)
+* Identify service downtime quickly
+* Provide metrics for debugging
+
+Even in cases where certain alerts appeared (e.g., Kubernetes internal components), the system behavior was correctly interpreted as **expected in a managed EKS environment**.
+
+---
+
+## **5. Performance Insights**
+
+Using Grafana dashboards, the following insights were observed:
+
+* Stable request handling under normal conditions
+* Clear spikes in metrics when load increases
+* Accurate representation of resource usage
+
+👉 Result: **Reliable performance monitoring**
+
+---
+
+## **6. Automation Effectiveness**
+
+* CI/CD pipeline reduced deployment time significantly
+* No manual configuration required for updates
+* Version tracking via commit SHA ensured traceability
+
+👉 Result: **Efficient and scalable deployment workflow**
+
+---
+
+## **7. Overall System Evaluation**
+
+| **Aspect**     | **Outcome**                      |
+| -------------- | -------------------------------- |
+| Deployment     | Fully automated                  |
+| Infrastructure | Consistent and reproducible      |
+| Monitoring     | Real-time and comprehensive      |
+| Alerting       | Accurate and responsive          |
+| Scalability    | Supported via Kubernetes         |
+| Reliability    | High, with self-healing features |
+
+---
+
+## **Discussion**
+
+The project successfully demonstrates how modern DevOps practices can be integrated to build a **production-like system**.
+
+### **Key Observations**
+
+* Observability must be **built into the system**, not added later
+* Automation significantly reduces operational complexity
+* Managed services like EKS simplify infrastructure but require **context-aware monitoring**
+* Combining multiple tools (Terraform, Helm, Prometheus, Grafana) creates a powerful ecosystem
+
+---
+
+### **Practical Impact**
+
+This system can be used as a foundation for:
+
+* Real-world production deployments
+* Learning DevOps and cloud-native practices
+* Extending into more advanced monitoring systems
+
+---
+
+### **In Simple Words**
+
+> The project successfully shows that applications can be automatically deployed, continuously monitored, and intelligently managed in a cloud environment.
+
+---
+
+## 14. Screenshots / Demonstration
+
+### **Overview**
+
+This section presents how the system can be visually demonstrated. Although actual screenshots are not included here, the following describes the key components and what should be observed during a live demonstration.
+
+These demonstrations help validate that:
+
+* The system is running correctly
+* Monitoring and alerting are functional
+* All components are properly integrated
+
+---
+
+## **1. Application Access (Frontend & API)**
+
+### **Website (Frontend)**
+
+* Accessed via browser using the Ingress endpoint
+* Displays:
+
+  * Project overview
+  * Architecture summary
+  * Features
+
+👉 Demonstrates successful deployment and routing
+
+---
+
+### **FastAPI Backend**
+
+* Accessible via:
+
+  * `/api` → main endpoint
+  * `/health` → health check
+
+Expected Output:
+
+* JSON response confirming service availability
+
+👉 Confirms backend service is operational
+
+---
+
+## **2. Grafana Dashboard**
+
+### **What to Demonstrate**
+
+* Open Grafana via:
+
+  * `/grafana` endpoint
+
+* Show **Golden Signals Dashboard**:
+
+  * Request rate (RPS)
+  * Error rate
+  * Latency (P95, P99)
+  * CPU and memory usage
+
+👉 Demonstrates real-time monitoring and visualization
+
+---
+
+## **3. Prometheus Metrics**
+
+### **What to Demonstrate**
+
+* Access Prometheus via:
+
+  * `/prometheus`
+
+* Run sample queries:
+
+  * Request rate
+  * Error rate
+  * Latency metrics
+
+👉 Shows raw metrics collection and querying capability
+
+---
+
+## **4. Alertmanager Interface**
+
+### **What to Demonstrate**
+
+* Access via:
+
+  * `/alertmanager`
+
+* Show:
+
+  * Active alerts
+  * Alert history
+  * Alert status (firing/resolved)
+
+👉 Confirms alerting system is functioning
+
+---
+
+## **5. Alert Demonstration (Optional)**
+
+You can simulate alerts by:
+
+* Generating high traffic → triggers latency alerts
+* Stopping a pod → triggers “service down” alert
+
+👉 Demonstrates real-time alert triggering and notification
+
+---
+
+## **6. Kubernetes Resources**
+
+### **What to Demonstrate**
+
+Using `kubectl`:
+
+* List pods:
+
+  * `kubectl get pods`
+
+* Check services and ingress:
+
+  * `kubectl get svc`
+  * `kubectl get ingress`
+
+👉 Confirms deployment and orchestration
+
+---
+
+## **7. CI/CD Pipeline Execution**
+
+### **What to Demonstrate**
+
+* Show GitHub Actions workflow:
+
+  * Successful pipeline run
+  * Image build and push steps
+  * Deployment logs
+
+👉 Demonstrates automation in action
+
+---
+
+## **Suggested Screenshots (for Report)**
+
+If adding visuals later, include:
+
+1. Grafana dashboard (Golden Signals)
+2. Prometheus query interface
+3. Alertmanager alerts page
+4. Website homepage
+5. GitHub Actions pipeline success screen
+6. Kubernetes pods/services output
+
+---
+
+### **In Simple Words**
+
+> This section shows how the system looks and behaves in real time, proving that all components—from deployment to monitoring—are working correctly.
+
+---
+
+## 15. Setup & Deployment Guide
+
+### **Overview**
+
+This section provides a high-level guide to set up and deploy the project.  
+For a **complete step-by-step detailed guide**, refer to:
+
+📄 <b>Detailed Setup Guide:</b>  
+<a href="https://github.com/githubabhay2003/BTech-Major-Project-Cloud-Native-Observability-EKS/blob/main/docs/setup-and-usage-guide.md" target="_blank">
+Open Setup & Usage Guide
+</a>
+
+> It is strongly recommended to follow the detailed guide for actual implementation, as it includes exact commands, validations, and troubleshooting steps.
+
+---
+
+## **1. Prerequisites**
+
+Before starting, ensure your system is properly configured.
+
+### **Required Tools**
+
+* Git
+* AWS CLI (Amazon Web Services Command Line Interface)
+* kubectl (Kubernetes CLI)
+* Docker
+* Terraform
+* Helm
+
+### **AWS Setup**
+
+* Create an AWS account
+* Configure AWS CLI using access keys
+* Ensure required permissions (IAM roles) are available
+
+👉 These tools enable interaction with cloud infrastructure and Kubernetes
+
+---
+
+## **2. Project Setup Workflow**
+
+The deployment process follows a structured sequence. Each step builds on the previous one.
+
+---
+
+### **Step 1: Clone the Repository**
+
+* Download the project from GitHub
+* Navigate into the project directory
+
+---
+
+### **Step 2: Provision Infrastructure (Terraform - Infra Layer)**
+
+* Navigate to:
+
+  ```
+  terraform/infra
+  ```
+* Run:
+
+  * `terraform init`
+  * `terraform plan`
+  * `terraform apply`
+
+This creates:
+
+* VPC (networking)
+* EKS cluster
+* IAM roles
+* ECR repository
+* Bastion host
+
+---
+
+### **Step 3: Configure Kubernetes Access**
+
+* Connect local system to EKS:
+
+  ```
+  aws eks update-kubeconfig
+  ```
+
+* Verify:
+
+  ```
+  kubectl get nodes
+  ```
+
+👉 Ensures Kubernetes cluster is accessible
+
+---
+
+### **Step 4: Deploy Platform Components (Terraform - Apps Layer)**
+
+* Navigate to:
+
+  ```
+  terraform/apps
+  ```
+
+* Deploy:
+
+  * Ingress Controller
+  * Prometheus, Grafana, Alertmanager
+  * Blackbox exporter
+
+👉 Sets up the observability environment
+
+---
+
+### **Step 5: Trigger Application Deployment (CI/CD)**
+
+* Push code to GitHub:
+
+  ```
+  git push
+  ```
+
+* GitHub Actions automatically:
+
+  * Builds Docker images
+  * Pushes to ECR
+  * Deploys via Helm
+
+👉 No manual deployment required
+
+---
+
+### **Step 6: Verify Deployment**
+
+Run:
+
 ```
-
----
-# 9. Setup & Deployment
-
-Follow the steps below to set up the infrastructure and deploy the application.
-
----
-
-### 🔹 Step 1: Clone the Repository
-
-Download the project code to your local system:
-
-```bash id="s1a2b3"
-git clone https://github.com/githubabhay2003/BTech-Major-Project-Cloud-Native-Observability-EKS.git
-cd BTech-Major-Project-Cloud-Native-Observability-EKS
-```
-
-👉 *This step copies the entire project from GitHub to your system.*
-
----
-
-### 🔹 Step 2: Provision Infrastructure
-
-*(Terraform - Infrastructure Layer)*
-
-Navigate to the infrastructure folder:
-
-```bash id="s2a2b3"
-cd terraform/infra
-```
-
-Initialize Terraform:
-
-```bash id="s2b2b3"
-terraform init
-```
-
-Apply the configuration:
-
-```bash id="s2c2b3"
-terraform apply
-```
-
-👉 *This step creates the complete cloud setup automatically.*
-
-### 📌 Resources Created:
-
-* Virtual Private Cloud (VPC)
-* Subnets and networking components
-* Network Address Translation (NAT) Gateway
-* Amazon Elastic Kubernetes Service (EKS) cluster
-* Node groups (servers for running applications)
-* AWS Identity and Access Management (IAM) roles
-* Amazon Elastic Container Registry (ECR)
-* Bastion host for secure access
-
-👉 *Real-World Example:*
-Like building the entire infrastructure (building, network, security) before starting operations.
-
----
-
-### 🔹 Step 3: Configure Kubernetes Access
-
-Connect your local system to the Kubernetes cluster:
-
-```bash id="s3a2b3"
-aws eks update-kubeconfig \
-  --region us-east-1 \
-  --name eks-observability-cluster
-```
-
-Verify the connection:
-
-```bash id="s3b2b3"
-kubectl get nodes
-```
-
-👉 *If nodes are listed, your cluster is successfully connected.*
-
----
-
-### 🔹 Step 4: Deploy Monitoring & Add-ons
-
-*(Terraform - Application Layer)*
-
-Navigate to the application layer:
-
-```bash id="s4a2b3"
-cd ../apps
-```
-
-Initialize Terraform:
-
-```bash id="s4b2b3"
-terraform init
-```
-
-Apply configuration:
-
-```bash id="s4c2b3"
-terraform apply
-```
-
-### 📌 This step installs:
-
-* NGINX Ingress Controller (traffic routing system)
-* Prometheus (monitoring tool)
-* Grafana (dashboard visualization tool)
-* Alertmanager (alerting system)
-* Observability routing configuration
-
-👉 *Real-World Example:*
-Like installing monitoring cameras and dashboards after building the system.
-
----
-
-### 🔹 Step 5: Deploy Applications
-
-*(Recommended: Automated CI/CD)*
-
-Push your code to GitHub:
-
-```bash id="s5a2b3"
-git push origin main
-```
-
-### 📌 What happens automatically:
-
-* Builds Docker images for:
-
-  * FastAPI backend
-  * Website frontend
-* Pushes images to Amazon Elastic Container Registry (ECR)
-* Deploys applications to Kubernetes using Helm
-
-👉 *This step uses GitHub Actions (Continuous Integration and Continuous Deployment - CI/CD).*
-
-👉 *Real-World Example:*
-Like an automatic system that builds and deploys your application whenever you update the code.
-
----
-
-### 🔹 Step 6 (Optional): Manual Deployment using Helm
-
-If needed, you can deploy applications manually:
-
-```bash id="s6a2b3"
-helm upgrade --install fastapi-app ./helm/fastapi \
-  --set image.repository=<ECR_FASTAPI_REPO> \
-  --set image.tag=<IMAGE_TAG>
-```
-
-```bash id="s6b2b3"
-helm upgrade --install website ./helm/website \
-  --set image.repository=<ECR_WEBSITE_REPO> \
-  --set image.tag=<IMAGE_TAG>
-```
-
-👉 *Helm (Kubernetes Package Manager) is used to simplify deployment.*
-
----
-
-## 🔹 End-to-End Flow (Quick Understanding)
-
-1. Clone the project
-2. Create infrastructure using Terraform
-3. Connect to Kubernetes cluster
-4. Install monitoring tools
-5. Deploy application automatically
-
----
-# 10. CI/CD Pipeline (Continuous Integration and Continuous Deployment)
-
-This project uses **GitHub Actions (CI/CD platform)** to automate the process of building, storing, and deploying applications to the cloud.
-
----
-
-### 🔹 What is CI/CD?
-
-* **Continuous Integration (CI):** Automatically builds the application when code changes
-* **Continuous Deployment (CD):** Automatically deploys the updated application
-
-👉 *In simple terms:*
-Whenever code is updated, the system builds and deploys it automatically without manual effort.
-
----
-
-### 🔹 Trigger
-
-* Pipeline runs automatically on:
-
-  * Every push to the `main` branch
-
-👉 *Example:*
-When you upload new code, deployment starts automatically.
-
----
-
-### 🔹 Secure Authentication
-
-* Uses **OpenID Connect (OIDC)** for authentication
-* Connects GitHub with **Amazon Web Services (AWS)** securely
-* No need to store passwords or access keys
-
-👉 *Benefit:* Improves system security
-
----
-
-### 🔹 Pipeline Workflow (Step-by-Step)
-
-1. **Checkout Code**
-
-   * Downloads latest project code
-
-2. **Configure AWS Access**
-
-   * Connects to AWS using OIDC
-
-3. **Authenticate with Amazon Elastic Container Registry (ECR)**
-
-   * Enables pushing Docker images
-
-4. **Build Docker Images**
-
-   * Builds images for:
-
-     * FastAPI backend
-     * Website frontend
-
-5. **Tag Images**
-
-   * Uses unique commit ID for version tracking
-
-6. **Push Images to ECR**
-
-   * Stores images securely in AWS
-
-7. **Configure Kubernetes Access**
-
-   * Connects to **Amazon Elastic Kubernetes Service (EKS)**
-
-8. **Deploy using Helm (Kubernetes Package Manager)**
-
-   * Deploys or updates applications automatically
-
----
-
-### 🔹 Deployment Strategy
-
-* Uses **rolling updates** (no downtime)
-* Uses **Helm upgrade/install** for reliable deployment
-* Each version is tracked using commit ID
-
----
-
-### 🔹 End-to-End Flow
-
-```
-Code Push → GitHub Actions → Build → Store → Deploy → Application Updated
-```
-
----
-
-### 🔹 Real-World Example
-
-Think of it like an **automatic factory system**:
-
-* You submit a design (code)
-* The factory builds the product (Docker image)
-* Stores it in warehouse (ECR)
-* Delivers it to store (EKS)
-* Updates happen automatically
-
----
-# 11. Verification Steps
-
-After deployment, follow the steps below to verify that the system is working correctly.
-
----
-
-## 🔍 Step 1: Check Kubernetes Resources
-
-Use the following commands to check whether all components are running properly.
-
-### 📌 Check running applications (Pods)
-
-```bash id="v1a"
-kubectl get pods -A
-```
-
-### 📌 Check services
-
-```bash id="v1b"
-kubectl get svc
-```
-
-### 📌 Check ingress (traffic routing)
-
-```bash id="v1c"
+kubectl get pods
+kubectl get services
 kubectl get ingress
 ```
 
-👉 **Expected Result:**
+Expected:
 
-* All pods should be in **Running** state
-* Services should be available
-* Ingress should show a valid external address
-
-👉 *In simple terms:*
-This step confirms that your system is running inside Kubernetes.
+* FastAPI and Website pods running
+* Services and ingress created
 
 ---
 
-## 🌐 Step 2: Access the Application
+### **Step 7: Access the Application**
 
-Get the external URL of the system:
+Retrieve LoadBalancer URL:
 
-```bash id="v2a"
+```
 kubectl get svc -n ingress-nginx
 ```
 
-Copy the **Load Balancer URL** and open it in a browser.
+Access via browser:
 
-### 📌 Access different components:
-
-* `http://<LOAD_BALANCER_URL>/` → Website
-* `http://<LOAD_BALANCER_URL>/api` → Backend (FastAPI)
-* `http://<LOAD_BALANCER_URL>/grafana` → Grafana dashboard
-* `http://<LOAD_BALANCER_URL>/prometheus` → Prometheus UI
-* `http://<LOAD_BALANCER_URL>/alertmanager` → Alertmanager UI
-
-👉 **Expected Result:**
-
-* Website should load successfully
-* API should respond
-* Monitoring tools should open
-
-👉 *Real-World Example:*
-Like checking whether all sections of a website are accessible after deployment.
+| **URL Path**    | **Service**       |
+| --------------- | ----------------- |
+| `/`             | Website           |
+| `/api`          | FastAPI           |
+| `/grafana`      | Grafana Dashboard |
+| `/prometheus`   | Prometheus UI     |
+| `/alertmanager` | Alertmanager UI   |
 
 ---
 
-## ❤️ Step 3: Validate Application Health
+## **3. Observability Testing**
 
-Check if the backend application is working properly:
+To validate monitoring and alerting:
 
-```bash id="v3a"
-curl http://<LOAD_BALANCER_URL>/api/health
-```
+### **Simulate Failures**
 
-### 📌 Expected Response:
+* Stop FastAPI:
 
-```json id="v3b"
-{"status": "ok"}
-```
+  ```
+  kubectl scale deployment fastapi-app --replicas=0
+  ```
 
-👉 *Meaning:*
-The application is healthy and running correctly.
+* Stop Website:
 
----
+  ```
+  kubectl scale deployment website --replicas=0
+  ```
 
-## 📊 Step 4: Verify Metrics Collection
+Expected:
 
-Check if the system is generating monitoring data:
-
-```bash id="v4a"
-curl http://<LOAD_BALANCER_URL>/api/metrics
-```
-
-### 📌 In Prometheus UI:
-
-* Open `/prometheus`
-* Search for metrics such as:
-
-  * `http_requests_total`
-  * `http_request_duration_seconds`
-
-👉 **Expected Result:**
-
-* Metrics should be visible and updating
-
-👉 *Meaning:*
-The system is successfully collecting performance data.
+* Alerts triggered in Prometheus
+* Notifications sent via Alertmanager
 
 ---
 
-## 📈 Step 5: Verify Grafana Dashboards
+## **4. Teardown (Important)**
 
-Open Grafana:
+After testing, destroy resources to avoid AWS charges.
 
-👉 `http://<LOAD_BALANCER_URL>/grafana`
+### **Steps**
 
-### 📌 Login Credentials:
+1. Delete Kubernetes ingress and LoadBalancers
+2. Destroy apps layer:
 
-* Username: `admin`
-* Password: `prom-operator`
+   ```
+   terraform destroy
+   ```
+3. Destroy infrastructure:
 
-### 📌 Verify:
+   ```
+   terraform destroy
+   ```
 
-* Dashboard is visible
-* Metrics such as:
-
-  * Requests per second (RPS)
-  * Latency
-  * Errors
-* Data is updating in real time
-
-👉 *Meaning:*
-You can visually monitor system performance.
+👉 Ensures no ongoing costs
 
 ---
 
-## 🚨 Step 6: Verify Alerting System
+## **5. Important Notes**
 
-Open Alertmanager:
-
-👉 `http://<LOAD_BALANCER_URL>/alertmanager`
-
-### 📌 Verify:
-
-* Alert configuration is loaded
-* Alerts are visible when conditions are triggered
-
-👉 *Example:*
-If system performance drops, an alert should be generated.
-
----
-# 12. Results
-
-The project was successfully implemented and tested in a cloud environment using **Amazon Web Services (AWS)**. The results demonstrate that the system is fully functional, automated, and capable of real-time monitoring.
+* ⚠️ AWS services like EKS and NAT Gateway may incur charges
+* Always destroy resources after use
+* Allow time for AWS resources (like LoadBalancers) to be cleaned up
 
 ---
 
-### 🔹 Successful Infrastructure Deployment
+### **In Simple Words**
 
-* Cloud infrastructure was created using **Terraform (Infrastructure as Code - IaC)**
-* All resources were provisioned automatically, including:
-
-  * Virtual Private Cloud (VPC)
-  * Amazon Elastic Kubernetes Service (EKS) cluster
-  * Networking and security components
-
-👉 **Result:**
-The entire system can be created from scratch without manual configuration.
+> This guide helps you set up the entire system from scratch, deploy it automatically, test monitoring features, and safely clean everything afterward.
 
 ---
 
-### 🔹 Application Deployment on Kubernetes
 
-* Backend (FastAPI) and frontend (Nginx) applications were successfully deployed on **Kubernetes (Amazon Elastic Kubernetes Service - EKS)**
-* Applications were running in multiple replicas for reliability
 
-👉 **Result:**
-The system is scalable and remains available even if one instance fails.
 
----
 
-### 🔹 Automated CI/CD Pipeline
 
-* Implemented using **GitHub Actions (Continuous Integration and Continuous Deployment - CI/CD)**
-* Application builds and deployments were triggered automatically on code changes
 
-👉 **Result:**
-Reduced manual effort and ensured faster, consistent deployments.
 
----
-
-### 🔹 Real-Time Monitoring and Visualization
-
-* Monitoring system implemented using:
-
-  * **Prometheus (Monitoring Tool)**
-  * **Grafana (Visualization Tool)**
-* Metrics such as:
-
-  * Request count
-  * Response time
-  * Error rate
-    were successfully collected and displayed
-
-👉 **Result:**
-System performance can be tracked in real time through dashboards.
-
----
-
-### 🔹 Alerting System Functionality
-
-* **Alertmanager (Alerting System)** was configured to generate alerts
-* Alerts were triggered when system thresholds were exceeded
-
-👉 **Result:**
-Issues can be detected early, improving system reliability.
-
----
-
-### 🔹 System Accessibility and Routing
-
-* External access was successfully configured using:
-
-  * **NGINX Ingress Controller (Traffic Manager)**
-  * AWS Load Balancer
-
-👉 **Result:**
-Users can access:
-
-* Website
-* Backend API
-* Monitoring dashboards
-
-from a single entry point.
-
----
-
-### 🔹 Rebuild and Reliability Testing
-
-* The system was tested by deleting and recreating infrastructure
-* All components were restored successfully using automation
-
-👉 **Result:**
-The system is **reliable, reproducible, and rebuild-safe**.
-
----
-
-### 🔹 Overall Outcome
-
-* Fully automated cloud-based system developed
-* Scalable and production-ready architecture achieved
-* Real-time monitoring and alerting implemented
-* Minimal manual intervention required
-
----
-# 13. Challenges & Learnings
-
-During the development of this project, multiple real-world challenges were encountered across different stages such as infrastructure setup, deployment, CI/CD, and monitoring. These challenges helped in gaining practical understanding and problem-solving skills.
-
----
-
-## 🔹 1. Infrastructure & Terraform Challenges
-
-| **Challenge**                          | **Root Cause**                                                        | **Solution Implemented**                                     | **Key Learning**                                  |
-| -------------------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------- |
-| Infrastructure deletion failed         | Cloud resources (Load Balancer, network interfaces) were still active | Removed dependent resources before destroying infrastructure | Cloud resources must be deleted in correct order  |
-| Terraform modules not working properly | Resources were directly referenced across modules                     | Passed values using inputs and outputs                       | Modules should be independent and reusable        |
-| Terraform state conflicts              | Resources existed outside Terraform control                           | Used import and cleaned state                                | Always maintain a single source of truth          |
-| Region mismatch issue                  | Different AWS regions used in configuration                           | Standardized region configuration                            | Cloud resources are region-specific               |
-
-👉 *Real-World Insight:*
-Like building a house — you cannot remove the foundation before removing the walls.
-
----
-
-## 🔹 2. CI/CD & Automation Challenges
-
-| **Challenge**                      | **Root Cause**                           | **Solution Implemented**                   | **Key Learning**                       |
-| ---------------------------------- | ---------------------------------------- | ------------------------------------------ | -------------------------------------- |
-| CI/CD pipeline failed              | Incorrect file paths after restructuring | Updated pipeline paths                     | CI/CD must match repository structure  |
-| Image version confusion            | Used `latest` tag                        | Switched to commit-based tagging           | Always use unique versioning           |
-| Authentication issues              | Use of static credentials                | Implemented OpenID Connect (OIDC)          | OIDC is more secure than static keys   |
-| Deployment not triggering properly | Manual process dependency                | Automated using scripts and GitHub Actions | Automation reduces manual errors       |
-
-👉 *Real-World Insight:*
-Like an automatic factory — if instructions are wrong, the entire production fails.
-
----
-
-## 🔹 3. Kubernetes & Deployment Challenges
-
-| **Challenge**                | **Root Cause**                             | **Solution Implemented**         | **Key Learning**                        |
-| ---------------------------- | ------------------------------------------ | -------------------------------- | --------------------------------------- |
-| Application not accessible   | Service type was internal (ClusterIP)      | Used Ingress for external access | Internal services need proper exposure  |
-| Namespace confusion          | Resources deployed in different namespaces | Standardized namespace usage     | Consistency is critical in Kubernetes   |
-| Helm deployment issues       | Incorrect chart structure                  | Reorganized Helm charts          | Helm should be modular per service      |
-| Duplicate resource conflicts | Same routes defined multiple times         | Removed duplicate configurations | Each resource must have a single owner  |
-
-👉 *Real-World Insight:*
-Like managing departments in a company — each department should have clear responsibility.
-
----
-
-## 🔹 4. Networking & Ingress Challenges
-
-| **Challenge**                        | **Root Cause**                   | **Solution Implemented**               | **Key Learning**                             |
-| ------------------------------------ | -------------------------------- | -------------------------------------- | -------------------------------------------- |
-| Traffic routing failures             | Duplicate or conflicting routes  | Cleaned and centralized routing        | Routing must be unique and consistent        |
-| Monitoring tools not accessible      | Path mismatch in routing         | Configured proper subpath handling     | Applications must support routing paths      |
-| Cross-namespace communication issues | Services in different namespaces | Used proxy services or unified routing | Kubernetes networking depends on namespaces  |
-
-👉 *Real-World Insight:*
-Like road traffic — if multiple roads lead to same destination incorrectly, it causes confusion.
-
----
-
-## 🔹 5. Observability & Monitoring Challenges
-
-| **Challenge**                  | **Root Cause**                   | **Solution Implemented**           | **Key Learning**                         |
-| ------------------------------ | -------------------------------- | ---------------------------------- | ---------------------------------------- |
-| Metrics not visible            | Application not exposing metrics | Added instrumentation (`/metrics`) | Applications must be observable          |
-| Grafana dashboards not loading | Missing configuration            | Enabled dashboard provisioning     | Monitoring requires proper setup         |
-| Alertmanager not working       | Incorrect configuration          | Fixed alert routing and receivers  | Alerting requires correct configuration  |
-| Alerts not triggered           | System not tested under failure  | Simulated failure scenarios        | Always test failure cases                |
-
-👉 *Real-World Insight:*
-Like a hospital monitor — it is useful only if it shows correct data and alerts.
-
----
-
-## 🔹 6. General & Design Challenges
-
-| **Challenge**                               | **Root Cause**                     | **Solution Implemented**                         | **Key Learning**                        |
-| ------------------------------------------- | ---------------------------------- | ------------------------------------------------ | --------------------------------------- |
-| Overengineering risk                        | Use of complex tools unnecessarily | Selected simple architecture (Nginx static site) | Simplicity is better than complexity    |
-| Manual steps were too many                  | Lack of automation                 | Created scripts and CI/CD pipeline               | Automate repetitive tasks               |
-| Mixing infrastructure and application logic | Poor separation of concerns        | Separated Terraform and Helm layers              | Keep responsibilities separate          |
-| Security gaps                               | Hardcoded credentials              | Moved towards secure practices (OIDC)            | Security should be built-in from start  |
-
-👉 *Real-World Insight:*
-Like organizing a system — clear roles and simplicity make it efficient.
-
----
-
-## 🔹 Key Overall Learnings
-
-* Infrastructure and application deployment should be **separate**
-* Automation reduces manual errors and improves reliability
-* Monitoring is incomplete without **alert validation**
-* Security should avoid static credentials and use modern methods
-* Systems should be **reproducible and idempotent**
-
----
-# 14. Future Improvements
-
-The current system is fully functional and follows a production-style architecture. However, based on real implementation experience, source code, and practical limitations, several improvements can further enhance **security, scalability, automation, and maintainability**.
-
----
-
-## 🔹 1. Security Enhancements
-
-| **Area**                             | **Current Limitation**                                                                   | **Future Improvement**                                                    | **Why It Matters (Simple Explanation)**                                  |
-| ------------------------------------ | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| Secrets Management                   | Sensitive data like SMTP credentials and Grafana password are hardcoded in configuration | Use **AWS Secrets Manager** or **Kubernetes Secrets** (encrypted storage) | Like storing passwords in a locker instead of writing them in a notebook |
-| IAM (Identity and Access Management) | Broad permissions assigned to roles                                                      | Implement **least privilege access** (only required permissions)          | Reduces risk if any account is compromised                               |
-| Bastion Host Access                  | SSH access allowed from anywhere (`0.0.0.0/0`)                                           | Restrict access to specific IP ranges                                     | Prevents unauthorized access from unknown users                          |
-| Kubernetes Access Control            | Full admin access (`system:masters`) given to roles                                      | Use **Role-Based Access Control (RBAC)** with limited permissions         | Like giving employee-specific access instead of full admin rights        |
-
----
-
-## 🔹 2. Infrastructure Improvements
-
-| **Area**                   | **Current Limitation**           | **Future Improvement**                                   | **Real-World Benefit**                            |
-| -------------------------- | -------------------------------- | -------------------------------------------------------- | ------------------------------------------------- |
-| Terraform State Management | Local state file used            | Use **remote backend (Amazon S3 + DynamoDB)**            | Enables team collaboration and prevents conflicts |
-| Environment Setup          | Single environment (dev)         | Add **multiple environments (dev, staging, production)** | Like testing in a lab before going live           |
-| Resource Cleanup           | Manual or semi-automated cleanup | Add automated cleanup scripts                            | Reduces human errors during deletion              |
-
----
-
-## 🔹 3. Kubernetes Enhancements
-
-| **Area**            | **Current Limitation**                       | **Future Improvement**                        | **Why It Matters**                                   |
-| ------------------- | -------------------------------------------- | --------------------------------------------- | ---------------------------------------------------- |
-| Resource Management | No CPU/Memory limits defined in Helm charts  | Add **resource requests and limits**          | Prevents one app from consuming all system resources |
-| Scalability         | Fixed number of pods (replicas)              | Implement **Horizontal Pod Autoscaler (HPA)** | Automatically scales based on traffic                |
-| Availability        | No disruption handling                       | Add **Pod Disruption Budgets (PDB)**          | Ensures minimum app availability during updates      |
-| Network Security    | No network restrictions                      | Add **Network Policies**                      | Controls which services can talk to each other       |
-
-👉 *Example:*
-Like a restaurant — if too many customers come, more staff (pods) should be added automatically.
-
----
-
-## 🔹 4. Observability Improvements
-
-| **Area**        | **Current Limitation**                                  | **Future Improvement**                                      | **Practical Impact**                         |
-| --------------- | ------------------------------------------------------- | ----------------------------------------------------------- | -------------------------------------------- |
-| Alerting System | Basic email alert setup with placeholder configuration  | Integrate **Slack / Email / PagerDuty** alerts              | Real-time notifications for failures         |
-| Metrics         | Only default FastAPI metrics used (`/metrics`)          | Add **custom business metrics**                             | Better understanding of application behavior |
-| Logging         | No centralized logging system                           | Add **Loki or ELK Stack (Elasticsearch, Logstash, Kibana)** | Helps in debugging issues quickly            |
-| Dashboards      | Basic Grafana dashboards                                | Add advanced dashboards with more insights                  | Improves monitoring visibility               |
-
-👉 *Example:*
-Like a hospital monitor — not only heart rate, but also blood pressure and oxygen levels should be tracked.
-
----
-
-## 🔹 5. CI/CD (Continuous Integration / Continuous Deployment) Improvements
-
-| **Area**                | **Current Limitation**                  | **Future Improvement**                                            | **Why It Matters**                |
-| ----------------------- | --------------------------------------- | ----------------------------------------------------------------- | --------------------------------- |
-| Pipeline Validation     | No validation steps before deployment   | Add **linting (code quality checks)** for Terraform, Helm, Docker | Prevents errors before deployment |
-| Security                | No scanning of images or infrastructure | Add **security scanning tools**                                   | Detects vulnerabilities early     |
-| Deployment Strategy     | Direct deployment on push               | Add **approval stages and rollback strategy**                     | Safer deployments                 |
-| Multi-Environment CI/CD | Only single environment deployment      | Add environment-based pipelines                                   | Better control over releases      |
-
-👉 *Example:*
-Like checking a product before shipping it to customers.
-
----
-
-## 🔹 6. Networking & Access Improvements
-
-| **Area**          | **Current Limitation**        | **Future Improvement**                               | **Real-World Benefit**                                                           |
-| ----------------- | ----------------------------- | ---------------------------------------------------- | -------------------------------------------------------------------------------- |
-| Domain Access     | Uses Load Balancer URL        | Configure **custom domain using Route53**            | Easier and professional access (e.g., [www.project.com](http://www.project.com)) |
-| Security (HTTPS)  | Uses HTTP (not secure)        | Enable **HTTPS using AWS Certificate Manager (ACM)** | Encrypts data between user and server                                            |
-| Monitoring Access | Publicly accessible endpoints | Add authentication (login protection)                | Prevents unauthorized viewing                                                    |
-
----
-
-## 🔹 7. Developer Experience Improvements
-
-| **Area**           | **Current Limitation**    | **Future Improvement**                       | **Benefit**               |
-| ------------------ | ------------------------- | -------------------------------------------- | ------------------------- |
-| Setup Process      | Multiple manual steps     | Add **bootstrap.sh script** for full setup   | One-command project setup |
-| Deployment Control | Only automatic deployment | Add **deploy.sh script** for manual trigger  | More flexibility          |
-| Documentation      | Basic instructions        | Improve onboarding and troubleshooting guide | Easier for new users      |
-
-👉 *Example:*
-Like installing an app with one click instead of multiple steps.
-
----
-
-## 🔹 Key Takeaways (Simple Summary)
-
-* Security should move from **basic → enterprise-level**
-* Infrastructure should support **team collaboration**
-* System should be able to **scale automatically**
-* Monitoring should cover **metrics + logs + alerts**
-* Deployment should be **safe, automated, and reversible**
-
----
-
-## 🔹 Final Statement 
-
-These future improvements demonstrate that the current system is not only functional but also **designed with scalability, security, and real-world production requirements in mind**. Implementing these enhancements would transform the system into a **fully enterprise-grade cloud-native platform**.
-
----
-# 16. Screenshots (Proof of Implementation)
-
-The following screenshots should be added after deployment to demonstrate that the system is fully functional and working as expected.
-
-👉 *Tip:* Each screenshot should clearly show **real output**, not blank screens.
-
----
-
-## 🌐 1. Application Layer (User View)
-
-These screenshots prove that your application is accessible to users.
-
-* **Website Homepage (Frontend)**
-
-  * Shows the deployed static website
-  * Confirms external access via Load Balancer
-
-```md
-![Website](docs/screenshots/website.png)
-```
-
-* **FastAPI API Endpoint Response**
-
-  * Example: `/api` or `/api/health`
-  * Shows JSON response
-
-```md
-![FastAPI](docs/screenshots/fastapi.png)
-```
-
-👉 *Why important:*
-Proves that both frontend and backend are working.
-
----
-
-## 📊 2. Observability (Monitoring Proof)
-
-These screenshots prove that your system is **monitoring itself in real time**.
-
-* **Grafana Dashboard (Golden Signals)**
-
-  * Show metrics like:
-
-    * Request rate
-    * Latency
-    * Errors
-
-```md
-![Grafana](docs/screenshots/grafana-dashboard.png)
-```
-
-* **Prometheus Targets / Metrics**
-
-  * Show targets as **UP**
-  * Show metrics like `http_requests_total`
-
-```md
-![Prometheus](docs/screenshots/prometheus.png)
-```
-
-* **Alertmanager UI**
-
-  * Show alert configuration
-  * If possible, show a triggered alert
-
-```md
-![Alertmanager](docs/screenshots/alertmanager.png)
-```
-
-👉 *Why important:*
-This is your **main project theme (observability)** — must be shown clearly.
-
----
-
-## ☸️ 3. Kubernetes (System Running Proof)
-
-These screenshots prove that your system is running inside Kubernetes.
-
-* **Pods Running**
-
-```bash
-kubectl get pods -A
-```
-
-```md
-![Pods](docs/screenshots/kubectl-pods.png)
-```
-
-* **Services**
-
-```bash
-kubectl get svc
-```
-
-```md
-![Services](docs/screenshots/services.png)
-```
-
-* **Ingress / Load Balancer**
-
-```bash
-kubectl get ingress
-```
-
-```md
-![Ingress](docs/screenshots/ingress.png)
-```
-
-👉 *Why important:*
-Shows system is deployed correctly inside **Kubernetes (Amazon Elastic Kubernetes Service - EKS)**.
-
----
-
-## ⚙️ 4. CI/CD Pipeline (Automation Proof) ⭐ VERY IMPORTANT
-
-This is one of the **highest scoring screenshots**.
-
-* **GitHub Actions Pipeline Success**
-
-  * Show:
-
-    * Green check ✅
-    * Steps like build, push, deploy
-
-```md
-![CI/CD](docs/screenshots/github-actions.png)
-```
-
-👉 *Why important:*
-Proves **automation + DevOps implementation**
-
----
-
-## ☁️ 5. Cloud Infrastructure (AWS Console Proof)
-
-These screenshots prove that your system is actually deployed on cloud.
-
-* **EKS Cluster Running**
-
-```md
-![EKS](docs/screenshots/eks-cluster.png)
-```
-
-* **Node Group / Worker Nodes**
-
-```md
-![Nodes](docs/screenshots/eks-nodes.png)
-```
-
-* **ECR Repositories (Images stored)**
-
-```md
-![ECR](docs/screenshots/ecr.png)
-```
-
-* **Load Balancer (External Access)**
-
-```md
-![LoadBalancer](docs/screenshots/loadbalancer.png)
-```
-
-👉 *Why important:*
-Confirms real deployment on **Amazon Web Services (AWS)**.
-
----
-
-## 🔐 6. Security & Access (Optional but High Value)
-
-* **IAM Role for GitHub Actions (OIDC)**
-* **No static credentials used**
-
-```md
-![IAM](docs/screenshots/iam-role.png)
-```
-
-👉 *Why important:*
-Shows **secure architecture**, not just working system.
-
----
-
-## 🔄 7. End-to-End Flow Proof (Advanced)
-
-* Screenshot showing:
-
-  * Code push → GitHub Actions → Deployment
-
-👉 You can combine:
-
-* GitHub commit
-* Pipeline run
-* Updated deployment
-
----
-
-## 🔹 Recommended Folder Structure
-
-```
-docs/
-└── screenshots/
-    ├── website.png
-    ├── fastapi.png
-    ├── grafana-dashboard.png
-    ├── prometheus.png
-    ├── alertmanager.png
-    ├── kubectl-pods.png
-    ├── services.png
-    ├── ingress.png
-    ├── github-actions.png
-    ├── eks-cluster.png
-    ├── ecr.png
-    └── loadbalancer.png
-```
-
----
-# 17. References (IEEE Format)
-
-[1] Amazon Web Services, *“AWS Documentation,”* Available: [https://docs.aws.amazon.com/](https://docs.aws.amazon.com/)
-
-[2] Amazon Web Services, *“Amazon Elastic Kubernetes Service (EKS),”* Available: [https://docs.aws.amazon.com/eks/](https://docs.aws.amazon.com/eks/)
-
-[3] Amazon Web Services, *“Amazon Elastic Container Registry (ECR),”* Available: [https://docs.aws.amazon.com/ecr/](https://docs.aws.amazon.com/ecr/)
-
-[4] Amazon Web Services, *“Virtual Private Cloud (VPC),”* Available: [https://docs.aws.amazon.com/vpc/](https://docs.aws.amazon.com/vpc/)
-
-[5] HashiCorp, *“Terraform Documentation,”* Available: [https://developer.hashicorp.com/terraform/docs](https://developer.hashicorp.com/terraform/docs)
-
-[6] HashiCorp, *“Terraform AWS Provider,”* Available: [https://registry.terraform.io/providers/hashicorp/aws/latest/docs](https://registry.terraform.io/providers/hashicorp/aws/latest/docs)
-
-[7] Kubernetes, *“Kubernetes Documentation,”* Available: [https://kubernetes.io/docs/](https://kubernetes.io/docs/)
-
-[8] Kubernetes, *“Kubernetes Concepts,”* Available: [https://kubernetes.io/docs/concepts/](https://kubernetes.io/docs/concepts/)
-
-[9] Helm, *“Helm Documentation,”* Available: [https://helm.sh/docs/](https://helm.sh/docs/)
-
-[10] Helm, *“Helm Charts Guide,”* Available: [https://helm.sh/docs/topics/charts/](https://helm.sh/docs/topics/charts/)
-
-[11] GitHub, *“GitHub Actions Documentation,”* Available: [https://docs.github.com/en/actions](https://docs.github.com/en/actions)
-
-[12] GitHub, *“OIDC for GitHub Actions,”* Available: [https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect)
-
-[13] Docker Inc., *“Docker Documentation,”* Available: [https://docs.docker.com/](https://docs.docker.com/)
-
-[14] Docker Inc., *“Docker Best Practices,”* Available: [https://docs.docker.com/develop/dev-best-practices/](https://docs.docker.com/develop/dev-best-practices/)
-
-[15] FastAPI, *“FastAPI Documentation,”* Available: [https://fastapi.tiangolo.com/](https://fastapi.tiangolo.com/)
-
-[16] NGINX, *“NGINX Documentation,”* Available: [https://nginx.org/en/docs/](https://nginx.org/en/docs/)
-
-[17] Prometheus, *“Prometheus Documentation,”* Available: [https://prometheus.io/docs/](https://prometheus.io/docs/)
-
-[18] Prometheus, *“Monitoring Best Practices,”* Available: [https://prometheus.io/docs/practices/](https://prometheus.io/docs/practices/)
-
-[19] Grafana Labs, *“Grafana Documentation,”* Available: [https://grafana.com/docs/](https://grafana.com/docs/)
-
-[20] Grafana Labs, *“Grafana Dashboards,”* Available: [https://grafana.com/grafana/dashboards/](https://grafana.com/grafana/dashboards/)
-
-[21] Prometheus, *“Alertmanager Documentation,”* Available: [https://prometheus.io/docs/alerting/latest/alertmanager/](https://prometheus.io/docs/alerting/latest/alertmanager/)
-
-[22] CNCF, *“Cloud Native Computing Foundation (CNCF) Landscape,”* Available: [https://landscape.cncf.io/](https://landscape.cncf.io/)
-
-[23] Google Cloud, *“Site Reliability Engineering (SRE) Book,”* Available: [https://sre.google/sre-book/table-of-contents/](https://sre.google/sre-book/table-of-contents/)
-
-[24] Microsoft, *“Cloud Architecture Patterns,”* Available: [https://learn.microsoft.com/en-us/azure/architecture/patterns/](https://learn.microsoft.com/en-us/azure/architecture/patterns/)
-
-[25] Stack Overflow, *“Technical Discussions and Solutions,”* Available: [https://stackoverflow.com/](https://stackoverflow.com/)
-
-[26] DigitalOcean, *“Kubernetes Tutorials,”* Available: [https://www.digitalocean.com/community/tutorials](https://www.digitalocean.com/community/tutorials)
-
-[27] Medium, *“DevOps and Cloud Articles,”* Available: [https://medium.com/](https://medium.com/)
-
-[28] Red Hat, *“Kubernetes and OpenShift Documentation,”* Available: [https://www.redhat.com/en/topics/containers/kubernetes](https://www.redhat.com/en/topics/containers/kubernetes)
-
----
-# 18. Author & Team Details
-
-This project was developed as part of the **8th Semester Major Project**.
-
-* Details of team members, college, and branch are mentioned in the **project header section** above.
-
----
-Perfect — here is your **final, clean, submission-ready License section** with your details properly filled 👇
-
----
-# 19. License
-
-This project is licensed under the **MIT License**, a widely used open-source license that allows flexibility in usage while ensuring proper credit to the original author.
-
----
-
-### 🔹 Permissions
-
-You are free to:
-
-* Use this project for personal, academic, or commercial purposes
-* Modify and improve the code
-* Distribute or share the project
-
----
-
-### 🔹 Conditions
-
-* The original license and copyright notice must be included
-* Proper credit must be given to the author
-
----
-
-### 🔹 MIT License
-
-```
-MIT License
-
-Copyright (c) 2026 Abhay Kumar Saini
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
----
 
 
