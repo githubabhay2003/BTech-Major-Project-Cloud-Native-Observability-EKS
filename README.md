@@ -1957,7 +1957,7 @@ For a **complete step-by-step detailed guide**, refer to:
 
 📄 <b>Detailed Setup Guide:</b>  
 <a href="https://github.com/githubabhay2003/BTech-Major-Project-Cloud-Native-Observability-EKS/blob/main/docs/setup-and-usage-guide.md" target="_blank">
-Open Setup & Usage Guide
+Setup & Usage Guide
 </a>
 
 > It is strongly recommended to follow the detailed guide for actual implementation, as it includes exact commands, validations, and troubleshooting steps.
