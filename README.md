@@ -2175,12 +2175,693 @@ After testing, destroy resources to avoid AWS charges.
 
 ---
 
+## 16. Challenges & Learnings
+
+---
+
+### **Overview**
+
+This project involved multiple layers including **Terraform, Kubernetes, CI/CD, and Observability**, which introduced several real-world challenges.
+
+For a **complete and detailed list of all challenges (100+ cases)**, refer to:
+
+📄 <b>Detailed Challenges & Learnings:</b>  
+<a href="https://github.com/githubabhay2003/BTech-Major-Project-Cloud-Native-Observability-EKS/blob/main/docs/challenges-and-learnings.md" target="_blank">
+Challenges & Learnings Guide
+</a>
+
+> The table below highlights only the **most important and impactful challenges**, structured similarly to the provided document.
+
+---
+
+## **Key Challenges (Summary Table)**
+
+| **#** | **Challenge Title**                       | **Description**                                                             | **Root Cause**                                  | **Solution / Approach**                                          | **Related Component**   |
+| ----- | ----------------------------------------- | --------------------------------------------------------------------------- | ----------------------------------------------- | ---------------------------------------------------------------- | ----------------------- |
+| 1     | Cross-module resource referencing failure | Terraform execution failed when modules tried to access each other directly | Modules are isolated by design                  | Used outputs from infra layer and passed as inputs to apps layer | Terraform (Modules)     |
+| 2     | EKS access not working (RBAC issue)       | Cluster access failed for users and CI/CD                                   | IAM roles not mapped in Kubernetes              | Configured `aws-auth` ConfigMap for RBAC mapping                 | EKS (Authentication)    |
+| 3     | Remote state dependency issues            | Apps layer couldn’t fetch infra outputs                                     | Incorrect remote state configuration            | Fixed `terraform_remote_state` with correct backend and outputs  | Terraform (State Mgmt)  |
+| 4     | Helm deployment failures (YAML errors)    | Deployment failed despite correct logic                                     | YAML formatting issues (indentation, syntax)    | Validated and corrected YAML before deployment                   | Helm                    |
+| 5     | CRDs not installed before usage           | Observability resources failed (ServiceMonitor, PrometheusRule)             | CRDs missing before dependent resources         | Ensured correct order using dependencies (`depends_on`)          | Kubernetes (CRDs)       |
+| 6     | FastAPI metrics not available             | Prometheus couldn’t scrape application metrics                              | `/metrics` endpoint not implemented             | Added Prometheus instrumentation and metrics endpoint            | FastAPI (Observability) |
+| 7     | Label mismatch in Kubernetes              | Prometheus couldn’t discover services                                       | Case-sensitive label mismatch                   | Standardized labels (e.g., `app: fastapi`)                       | Kubernetes (Labels)     |
+| 8     | Image pull failures (ImagePullBackOff)    | Pods failed to start                                                        | Incorrect image URI or missing permissions      | Fixed ECR URI and IAM permissions for nodes                      | Kubernetes / ECR        |
+| 9     | CI/CD authentication complexity           | Difficulty securing AWS access from GitHub                                  | Confusion between static credentials vs OIDC    | Implemented OIDC-based authentication                            | AWS IAM / CI-CD         |
+| 10    | Helm release stuck in failed state        | Deployment blocked due to previous failed release                           | Stale Helm metadata                             | Cleaned up failed release and redeployed                         | Helm                    |
+| 11    | Ingress routing issues (503 / 404 errors) | Services not accessible via browser                                         | Namespace mismatch and routing misconfiguration | Unified ingress and corrected routing rules                      | Kubernetes (Ingress)    |
+| 12    | Alert pipeline not working end-to-end     | Alerts triggered but not delivered                                          | Misconfigured Alertmanager endpoints            | Validated pipeline using failure simulation                      | Observability           |
+| 13    | State drift between tools                 | System became inconsistent over time                                        | Multiple tools managing same resources          | Defined Terraform as single source of truth                      | Terraform / Kubernetes  |
+| 14    | Non-reproducible deployments              | Different results across runs                                               | Manual steps and inconsistent configs           | Fully automated using Terraform + CI/CD                          | DevOps Workflow         |
+| 15    | Terraform destroy failures                | Resources not deleted properly                                              | AWS dependencies (ELB, ENI still attached)      | Cleaned Kubernetes resources before destroy                      | AWS / Terraform         |
+
+---
+
+## **Key Learnings**
+
+From these challenges, several important lessons were learned:
+
+---
+
+### **1. Importance of Modular Design**
+
+* Terraform modules must communicate via **inputs and outputs**, not direct references
+* Proper modularization improves scalability and maintainability
+
+---
+
+### **2. Observability Must Be Built-In**
+
+* Applications must expose:
+
+  * `/metrics`
+  * `/health`
+* Without instrumentation, monitoring systems cannot function
+
+---
+
+### **3. Kubernetes Requires Strict Consistency**
+
+* Labels, namespaces, and selectors must match exactly
+* Small mismatches can break the entire system
+
+---
+
+### **4. Automation is Critical**
+
+* Manual steps lead to:
+
+  * Errors
+  * Inconsistencies
+* Automation using **Terraform and CI/CD** ensures repeatability
+
+---
+
+### **5. Debugging Requires Systematic Approach**
+
+* Issues often arise across multiple layers:
+
+  * Infrastructure
+  * Kubernetes
+  * CI/CD
+* Logs and step-by-step validation are essential
+
+---
+
+### **6. Managed Services Have Hidden Behaviors**
+
+* Amazon EKS hides some components (e.g., Controller Manager)
+* Monitoring must account for such differences
+
+---
+
+### **7. Security Best Practices Matter**
+
+* Avoid hardcoded credentials
+* Use:
+
+  * IAM roles
+  * OIDC authentication
+  * Secrets management
+
+---
+
+### **In Simple Words**
+
+> Building a cloud-native system is not just about deployment — it requires careful coordination between infrastructure, applications, monitoring, and automation. Each challenge helped strengthen the system design and reliability.
+
+---
+
+## 17. Limitations
+
+### **Overview**
+
+While the project successfully demonstrates a complete cloud-native observability platform, it has certain limitations due to scope, design choices, and the academic nature of the implementation.
+
+Understanding these limitations helps identify areas for improvement and future enhancement.
+
+---
+
+## **Key Limitations**
+
+---
+
+### **1. Not Fully Production-Hardened**
+
+* The system is designed for learning and demonstration
+* Missing advanced production features such as:
+
+  * Fine-grained security policies
+  * High availability configurations across multiple regions
+
+👉 Suitable for **educational and prototype use**, not full-scale production
+
+---
+
+### **2. Limited Security Implementation**
+
+* Some configurations are simplified:
+
+  * IAM roles may have broad permissions (for ease of setup)
+  * Credentials (e.g., SMTP, Grafana) may not use secure secret storage
+
+👉 Needs improvement with:
+
+* Kubernetes Secrets
+* Role-based access control (RBAC) refinement
+
+---
+
+### **3. Cost Considerations**
+
+* Uses real AWS services such as:
+
+  * EKS
+  * NAT Gateway
+  * Load Balancer
+
+* These services are **not fully free-tier eligible**
+
+👉 Requires careful usage and teardown to avoid costs
+
+---
+
+### **4. Single Region Deployment**
+
+* Deployed only in one AWS region (e.g., `us-east-1`)
+* No multi-region failover or disaster recovery
+
+👉 Limits system resilience in case of regional failures
+
+---
+
+### **5. Basic Alerting Strategy**
+
+* Alerts cover key scenarios but are:
+
+  * Not deeply tuned
+  * May include noise (e.g., expected alerts in EKS)
+
+👉 Needs refinement for:
+
+* Alert prioritization
+* Noise reduction
+
+---
+
+### **6. Limited Logging Implementation**
+
+* Focus is mainly on **metrics-based observability**
+* Centralized logging (e.g., ELK stack or Loki) is not implemented
+
+👉 Limits ability to debug detailed application issues
+
+---
+
+### **7. Manual Testing for Failure Scenarios**
+
+* Failure scenarios (e.g., scaling pods to zero) are tested manually
+* No automated chaos testing or resilience testing
+
+👉 Could be improved using:
+
+* Chaos engineering tools
+
+---
+
+### **8. Simplified Frontend Application**
+
+* Uses a basic static website
+* No dynamic frontend framework or user interaction
+
+👉 Focus is on infrastructure and observability rather than UI complexity
+
+---
+
+### **9. Limited Autoscaling Configuration**
+
+* Kubernetes supports autoscaling, but:
+
+  * Horizontal Pod Autoscaler (HPA) is not fully implemented
+
+👉 Limits automatic scaling based on real-time load
+
+---
+
+### **10. Tight Coupling in Some Areas**
+
+* Some components (Terraform, Helm, CI/CD) are closely integrated
+* Changes in one layer may require updates in others
+
+👉 Could be improved with better decoupling and abstraction
+
+---
+
+## **Summary**
+
+> While the project effectively demonstrates modern DevOps and observability practices, it is intentionally simplified in certain areas to maintain clarity and feasibility within an academic scope.
+
+---
+
+### **In Simple Words**
+
+> The system works well and shows real-world concepts, but it is not fully optimized for production environments and can be improved in areas like security, scalability, and advanced monitoring.
+
+---
+
+## 18. Future Scope
+
+### **Overview**
+
+While the current system demonstrates a complete cloud-native observability platform, there are several opportunities to enhance its capabilities and move closer to a **production-grade system**.
+
+The following areas outline potential improvements and extensions.
+
+---
+
+## **1. Advanced Security Enhancements**
+
+* Implement **fine-grained IAM roles** with least privilege access
+* Use **Kubernetes Secrets** or external secret managers (e.g., AWS Secrets Manager)
+* Enable **network policies** to restrict pod-to-pod communication
+
+👉 Improves overall system security and compliance
+
+---
+
+## **2. Multi-Region & High Availability**
+
+* Deploy the system across multiple AWS regions
+* Implement:
+
+  * Load balancing across regions
+  * Disaster recovery strategies
+
+👉 Ensures high availability and fault tolerance
+
+---
+
+## **3. Autoscaling Implementation**
+
+* Add **Horizontal Pod Autoscaler (HPA)** for applications
+* Configure scaling based on:
+
+  * CPU usage
+  * Request rate
+
+👉 Enables dynamic scaling based on workload
+
+---
+
+## **4. Centralized Logging System**
+
+* Integrate logging tools such as:
+
+  * ELK Stack (Elasticsearch, Logstash, Kibana)
+  * Loki (Grafana logging system)
+
+👉 Complements metrics with detailed log analysis
+
+---
+
+## **5. Advanced Alerting Strategy**
+
+* Improve alert rules with:
+
+  * Threshold tuning
+  * Alert grouping and deduplication
+  * Severity-based routing
+
+* Integrate with:
+
+  * Slack
+  * PagerDuty
+
+👉 Reduces alert noise and improves incident response
+
+---
+
+## **6. Chaos Engineering & Resilience Testing**
+
+* Introduce tools like:
+
+  * Chaos Mesh
+  * LitmusChaos
+
+* Simulate:
+
+  * Node failures
+  * Network issues
+
+👉 Tests system reliability under real-world failures
+
+---
+
+## **7. Blue-Green / Canary Deployments**
+
+* Enhance CI/CD pipeline to support:
+
+  * Blue-Green deployments
+  * Canary releases
+
+👉 Enables safer and controlled application updates
+
+---
+
+## **8. Service Mesh Integration**
+
+* Integrate tools like:
+
+  * Istio
+  * Linkerd
+
+* Benefits:
+
+  * Traffic management
+  * Security (mTLS)
+  * Observability at service level
+
+---
+
+## **9. Improved Frontend Experience**
+
+* Replace static website with:
+
+  * React or Next.js-based frontend
+
+👉 Provides better user interaction and UI experience
+
+---
+
+## **10. Cost Optimization**
+
+* Optimize AWS usage by:
+
+  * Using spot instances
+  * Reducing NAT Gateway costs
+  * Implementing autoscaling policies
+
+👉 Makes the system more cost-efficient
+
+---
+
+## **11. Full Production Readiness**
+
+* Add:
+
+  * Backup strategies
+  * Logging + tracing integration
+  * SLA/SLO-based monitoring
+
+👉 Transforms the system into an enterprise-ready solution
+
+---
+
+### **Future Scope Summary**
+
+> The project provides a strong foundation that can be extended into a fully scalable, secure, and production-ready cloud-native platform.
+
+---
+
+### **In Simple Words**
+
+> With additional improvements in security, scaling, logging, and deployment strategies, this system can evolve into a real-world production-grade solution.
+
+---
+
+## 19. Conclusion
+
+### **Overview**
+
+This project successfully demonstrates the design and implementation of a **Cloud-Native Observability Platform on Amazon Elastic Kubernetes Service (Amazon EKS)** using modern DevOps practices and tools.
+
+It brings together multiple technologies to create a system that is **automated, scalable, and observable**.
+
+---
+
+## **Key Achievements**
+
+The project achieved the following:
+
+* ✅ **Automated Infrastructure Provisioning**
+  Using Terraform (Infrastructure as Code), the entire cloud environment was created in a consistent and repeatable manner
+
+* ✅ **Containerized Application Deployment**
+  Applications were packaged using Docker and deployed on Kubernetes (EKS)
+
+* ✅ **CI/CD Automation**
+  GitHub Actions enabled seamless build and deployment workflows without manual intervention
+
+* ✅ **Comprehensive Observability**
+  Integrated:
+
+  * Prometheus (metrics collection)
+  * Grafana (visualization)
+  * Alertmanager (alerting)
+
+* ✅ **Real-Time Monitoring & Alerting**
+  The system can detect issues such as:
+
+  * High error rates
+  * Increased latency
+  * Service downtime
+
+---
+
+## **Overall Impact**
+
+This project highlights how modern cloud-native systems can:
+
+* Be **fully automated** from infrastructure to deployment
+* Provide **deep visibility** into system behavior
+* Enable **proactive issue detection and resolution**
+
+It reflects real-world practices used in:
+
+* DevOps engineering
+* Site Reliability Engineering (SRE)
+* Cloud platform management
+
+---
+
+## **Learning Outcome**
+
+Through this project, the following key concepts were understood:
+
+* Integration of multiple tools into a single ecosystem
+* Importance of observability in distributed systems
+* Role of automation in reducing operational complexity
+* Challenges of managing cloud-native environments
+
+---
+
+## **Final Thought**
+
+> This project demonstrates that building modern applications is not just about deployment — it is about creating systems that are observable, reliable, and capable of self-monitoring in real time.
+
+---
+
+### **In Simple Words**
+
+> The project shows how to build a smart system that can run applications, monitor them continuously, and alert you automatically when something goes wrong.
+
+---
+
+## 20. References
+
+### **Overview**
+
+The following references were used to understand and implement various components of this project, including **cloud computing, Kubernetes, DevOps practices, and observability tools**.
+
+All references are formatted according to the **IEEE citation style**.
+
+---
+
+### **References (IEEE Format)**
+
+[1] B. Burns, B. Grant, D. Oppenheimer, E. Brewer, and J. Wilkes, “Borg, Omega, and Kubernetes,” *Communications of the ACM*, vol. 59, no. 5, pp. 50–57, May 2016.
+
+[2] K. Hightower, B. Burns, and J. Beda, *Kubernetes: Up and Running*, 2nd ed., Sebastopol, CA: O’Reilly Media, 2019.
+
+[3] B. Turnbull, *The Docker Book: Containerization is the New Virtualization*, Portland, OR: Atomic Penguin Publishing, 2014.
+
+[4] HashiCorp, “Terraform Documentation,” Available: [https://developer.hashicorp.com/terraform/docs](https://developer.hashicorp.com/terraform/docs) (Accessed: Apr. 19, 2026).
+
+[5] Amazon Web Services, “Amazon EKS Documentation,” Available: [https://docs.aws.amazon.com/eks/](https://docs.aws.amazon.com/eks/) (Accessed: Apr. 19, 2026).
+
+[6] Amazon Web Services, “Amazon ECR Documentation,” Available: [https://docs.aws.amazon.com/ecr/](https://docs.aws.amazon.com/ecr/) (Accessed: Apr. 19, 2026).
+
+[7] Prometheus Authors, “Prometheus Documentation,” Available: [https://prometheus.io/docs/](https://prometheus.io/docs/) (Accessed: Apr. 19, 2026).
+
+[8] Grafana Labs, “Grafana Documentation,” Available: [https://grafana.com/docs/](https://grafana.com/docs/) (Accessed: Apr. 19, 2026).
+
+[9] Prometheus Authors, “Alertmanager Documentation,” Available: [https://prometheus.io/docs/alerting/latest/alertmanager/](https://prometheus.io/docs/alerting/latest/alertmanager/) (Accessed: Apr. 19, 2026).
+
+[10] Helm Authors, “Helm Documentation,” Available: [https://helm.sh/docs/](https://helm.sh/docs/) (Accessed: Apr. 19, 2026).
+
+[11] GitHub, “GitHub Actions Documentation,” Available: [https://docs.github.com/en/actions](https://docs.github.com/en/actions) (Accessed: Apr. 19, 2026).
+
+[12] FastAPI, “FastAPI Documentation,” Available: [https://fastapi.tiangolo.com/](https://fastapi.tiangolo.com/) (Accessed: Apr. 19, 2026).
+
+[13] NGINX, “NGINX Documentation,” Available: [https://nginx.org/en/docs/](https://nginx.org/en/docs/) (Accessed: Apr. 19, 2026).
+
+[14] CNCF, “Cloud Native Computing Foundation Landscape,” Available: [https://landscape.cncf.io/](https://landscape.cncf.io/) (Accessed: Apr. 19, 2026).
+
+[15] J. Humble and D. Farley, *Continuous Delivery: Reliable Software Releases through Build, Test, and Deployment Automation*, Boston, MA: Addison-Wesley, 2010.
+
+[16] N. Kratzke and P.-C. Quint, “Understanding cloud-native applications after 10 years of cloud computing,” *Journal of Systems and Software*, vol. 126, pp. 1–16, Apr. 2017.
+
+[17] L. Bass, I. Weber, and L. Zhu, *DevOps: A Software Architect’s Perspective*, Boston, MA: Addison-Wesley, 2015.
+
+[18] Google Cloud, “Site Reliability Engineering Book,” Available: [https://sre.google/books/](https://sre.google/books/) (Accessed: Apr. 19, 2026).
+
+[19] D. Merkel, “Docker: Lightweight Linux containers for consistent development and deployment,” *Linux Journal*, vol. 2014, no. 239, Mar. 2014.
+
+[20] M. Fowler, “Infrastructure as Code,” Available: [https://martinfowler.com/bliki/InfrastructureAsCode.html](https://martinfowler.com/bliki/InfrastructureAsCode.html) (Accessed: Apr. 19, 2026).
+
+[21] Kubernetes Authors, “Kubernetes Documentation,” Available: [https://kubernetes.io/docs/home/](https://kubernetes.io/docs/home/) (Accessed: Apr. 19, 2026).
+
+[22] Prometheus Community, “kube-prometheus-stack Helm Chart,” Available: [https://github.com/prometheus-community/helm-charts](https://github.com/prometheus-community/helm-charts) (Accessed: Apr. 19, 2026).
+
+[23] AWS, “IAM Best Practices,” Available: [https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html](https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html) (Accessed: Apr. 19, 2026).
+
+[24] OIDC, “OpenID Connect Core 1.0,” Available: [https://openid.net/specs/openid-connect-core-1_0.html](https://openid.net/specs/openid-connect-core-1_0.html) (Accessed: Apr. 19, 2026).
+
+[25] CNCF, “Prometheus Monitoring Overview,” Available: [https://www.cncf.io/projects/prometheus/](https://www.cncf.io/projects/prometheus/) (Accessed: Apr. 19, 2026).
+
+[26] Grafana Labs, “Monitoring Best Practices,” Available: [https://grafana.com/docs/grafana/latest/best-practices/](https://grafana.com/docs/grafana/latest/best-practices/) (Accessed: Apr. 19, 2026).
+
+[27] AWS, “Elastic Load Balancing Documentation,” Available: [https://docs.aws.amazon.com/elasticloadbalancing/](https://docs.aws.amazon.com/elasticloadbalancing/) (Accessed: Apr. 19, 2026).
+
+[28] Kubernetes, “Ingress Concepts,” Available: [https://kubernetes.io/docs/concepts/services-networking/ingress/](https://kubernetes.io/docs/concepts/services-networking/ingress/) (Accessed: Apr. 19, 2026).
+
+[29] Prometheus, “Blackbox Exporter,” Available: [https://github.com/prometheus/blackbox_exporter](https://github.com/prometheus/blackbox_exporter) (Accessed: Apr. 19, 2026).
+
+[30] Google, “Monitoring Distributed Systems,” Available: [https://sre.google/sre-book/monitoring-distributed-systems/](https://sre.google/sre-book/monitoring-distributed-systems/) (Accessed: Apr. 19, 2026).
+
+---
+
+### **In Simple Words**
+
+> These references include official documentation, research papers, and books that support the technologies and concepts used in this project.
+
+---
+
+## 21. Contributors
+
+### **Overview**
+
+This project was developed as part of an academic major project under the **Faculty of Engineering and Technology**.
+
+It is a collaborative effort by a team of students, guided by faculty supervision.
+
+---
+
+## **Project Team**
+
+| **Name**              | **Roll Number** | **Role**                                              |
+| --------------------- | --------------- | ----------------------------------------------------- |
+| **Abhay Kumar Saini** | 0201220001      | DevOps, Infrastructure & Observability Implementation |
+| **Abhijeet Kumar**    | 0201220002      | Application Development & Integration                 |
+| **Vaibhav Sarkar**    | 0201220150      | Kubernetes Deployment & Testing                       |
+
+---
+
+## **Academic Details**
+
+* **Program:** Bachelor of Technology (B.Tech)
+* **Branch:** Computer Science and Engineering (CSE)
+* **Semester:** VIII Semester
+* **Academic Session:** 2025–2026
+
+---
+
+## **Project Supervision**
+
+* **Guide:** Prof. (Dr.) Om Prakash Sharma
+* **Coordinator:** Prof. (Dr.) Om Prakash Sharma
+
+---
+
+### **Institution**
+
+**Jagannath University, Jaipur (Rajasthan)**
+**Faculty of Engineering and Technology**
+
+---
+
+### **Contribution Summary**
+
+* The project was collaboratively developed with contributions across:
+
+  * Infrastructure design (Terraform)
+  * Kubernetes deployment (Helm & EKS)
+  * CI/CD pipeline (GitHub Actions)
+  * Observability implementation (Prometheus, Grafana, Alertmanager)
+
+---
+
+### **In Simple Words**
+
+> This project was built by a team of students with guidance from faculty, combining efforts in development, deployment, and monitoring to create a complete cloud-native system.
+
+---
+
+## 📜 License
+
+This project is licensed under the **MIT License**, which allows flexible use while ensuring proper credit to the original authors.
 
 
+### 🔹 Permissions
 
+You are free to:
 
+* Use this project for **personal, academic, or commercial purposes**
+* Modify and improve the code
+* Share or distribute the project
 
+---
 
+### 🔹 Conditions
+
+* The original license and copyright notice must be included
+* Proper credit must be given to the authors
+
+---
+
+### 📄 MIT License
+
+```
+MIT License
+
+Copyright (c) 2026 Abhay Kumar Saini
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+---
+
+### 📌 Note
+
+* This license makes the project **open-source and reusable**
+* Anyone can build upon this work while giving proper credit
+
+---
 
 
 
