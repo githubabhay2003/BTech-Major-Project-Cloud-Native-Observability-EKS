@@ -1,6 +1,4 @@
 # Cloud-Native Observability Platform on Amazon Elastic Kubernetes Service (EKS)
----
-
 ![AWS](https://img.shields.io/badge/AWS-EKS%20%7C%20ECR%20%7C%20IAM-orange?logo=amazonaws)
 ![Kubernetes](https://img.shields.io/badge/Kubernetes-EKS-blue?logo=kubernetes)
 ![Terraform](https://img.shields.io/badge/IaC-Terraform-623CE4?logo=terraform)
