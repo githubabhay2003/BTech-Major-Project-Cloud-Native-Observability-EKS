@@ -1,4 +1,4 @@
-## 12. Alerts & Monitoring Strategy
+## Alerts & Monitoring Strategy
 
 ### **Overview**
 
