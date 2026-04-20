@@ -1,4 +1,4 @@
-## 10. Kubernetes Deployment (Helm)
+##  Kubernetes Deployment (Helm)
 
 ### **Overview**
 
