@@ -1,4 +1,4 @@
-## 8. Infrastructure Design (Terraform)
+##  Infrastructure Design (Terraform)
 
 ### **Overview**
 
