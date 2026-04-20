@@ -1,4 +1,4 @@
-## 5. Architecture Overview
+## 🏗️ Architecture Overview
 
 ### **Architecture Diagram**
 
