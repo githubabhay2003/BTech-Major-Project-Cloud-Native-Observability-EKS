@@ -1,4 +1,4 @@
-## 7. Methodology & Workflow
+##  Methodology & Workflow
 
 ### **Overview**
 
