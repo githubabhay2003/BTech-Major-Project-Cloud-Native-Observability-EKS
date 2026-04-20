@@ -1,4 +1,4 @@
-## 11. Observability Implementation
+##  Observability Implementation
 
 ### **Overview**
 
