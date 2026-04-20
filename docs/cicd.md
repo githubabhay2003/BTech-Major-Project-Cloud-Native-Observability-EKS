@@ -1,4 +1,4 @@
-## 9. CI/CD Pipeline
+##  CI/CD Pipeline
 
 ### **Overview**
 
