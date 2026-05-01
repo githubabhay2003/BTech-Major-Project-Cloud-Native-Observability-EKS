@@ -332,19 +332,10 @@ This section highlights the **end-to-end system behavior**, from user access to 
 </p>
 
 ---
-### **CI/CD Pipeline**
+### **Grafana dashboard (FastApi)**
 
 <p align="center">
-  <img src="docs/images/github-actions.png" width="100%"><br>
-  <b>Figure:</b> <i>GitHub Actions pipeline executing build, push, and deployment steps</i>
-</p>
-
----
-
-### **Kubernetes Resources**
-
-<p align="center">
-  <img src="docs/images/kubernetes.png" width="100%"><br>
+  <img src="docs/images/grafana-dashboard.png" width="100%"><br>
   <b>Figure:</b> <i>Kubernetes cluster resources (pods, services, ingress) running successfully</i>
 </p>
 ---
