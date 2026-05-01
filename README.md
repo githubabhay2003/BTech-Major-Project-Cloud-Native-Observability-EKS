@@ -270,7 +270,7 @@ The system follows a **layered cloud-native architecture**, ensuring modularity,
 
 ## 📸 Screenshots / Demonstration
 
-This section highlights key components of the system in action, demonstrating deployment, monitoring, and automation.
+This section highlights the **end-to-end system behavior**, from user access to observability and alerting.
 
 ---
 
@@ -278,43 +278,60 @@ This section highlights key components of the system in action, demonstrating de
 
 <p align="center">
   <img src="docs/images/website.png" width="100%"><br>
-  <b>Figure:</b> <i>Frontend Website served via NGINX through Kubernetes Ingress</i>
+  <b>Figure:</b> <i>Frontend application exposed via Kubernetes Ingress (public ALB URL)</i>
 </p>
 
 <p align="center">
   <img src="docs/images/api-response.png" width="100%"><br>
-  <b>Figure:</b> <i>FastAPI backend response confirming service health and availability</i>
+  <b>Figure:</b> <i>FastAPI backend responding successfully via public endpoint</i>
 </p>
 
 ---
 
-### **Grafana Dashboard**
+### **CI/CD Pipeline**
 
 <p align="center">
-  <img src="docs/images/grafana-dashboard.png" width="100%"><br>
-  <b>Figure:</b> <i>Grafana dashboard showing Golden Signals (RPS, latency, errors, resource usage)</i>
+  <img src="docs/images/github-actions.png" width="100%"><br>
+  <b>Figure:</b> <i>GitHub Actions pipeline automatically building, pushing to ECR, and deploying to EKS</i>
 </p>
 
 ---
 
-### **Prometheus Metrics**
+### **Kubernetes Ingress (Public Access)**
 
 <p align="center">
-  <img src="docs/images/prometheus.png" width="100%"><br>
-  <b>Figure:</b> <i>Prometheus interface displaying real-time metrics and queries</i>
+  <img src="docs/images/Kubernetes Ingress Routing.png" width="100%"><br>
+  <b>Figure:</b> <i>Ingress routing traffic from external ALB to services inside the Kubernetes cluster</i>
 </p>
 
 ---
 
-### **Alertmanager**
+### **Observability — Request → Metrics Correlation**
 
 <p align="center">
-  <img src="docs/images/alertmanager.png" width="100%"><br>
-  <b>Figure:</b> <i>Alertmanager showing active alerts and system health notifications</i>
+  <img src="docs/images/End-to-End Request → Metrics Correlation (Before).png" width="100%"><br>
+  <b>Figure:</b> <i>Traffic generation directly reflected in metrics, validating observability pipeline</i>
 </p>
 
 ---
 
+### **Prometheus Metrics Validation**
+
+<p align="center">
+  <img src="docs/images/Prometheus Query (Metrics Validation).png" width="100%"><br>
+  <b>Figure:</b> <i>Prometheus querying real-time metrics (request rate) from instrumented FastAPI service</i>
+</p>
+
+---
+
+### **Alerting Pipeline (Real-time Firing)**
+
+<p align="center">
+  <img src="docs/images/alert-email-notification-firing.png" width="100%"><br>
+  <b>Figure:</b> <i>Real-time alert triggered and delivered via email when system thresholds are breached</i>
+</p>
+
+---
 ### **CI/CD Pipeline**
 
 <p align="center">
