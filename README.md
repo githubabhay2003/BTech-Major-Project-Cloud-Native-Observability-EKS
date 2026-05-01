@@ -332,12 +332,14 @@ This section highlights the **end-to-end system behavior**, from user access to 
 </p>
 
 ---
+
 ### **Grafana dashboard (FastApi)**
 
 <p align="center">
   <img src="docs/images/grafana-dashboard.png" width="100%"><br>
   <b>Figure:</b> <i>Grafana dashboard visualizing FastAPI Golden Signals — request rate, latency (P95/P99), error rate, and resource usage (CPU & memory) in real time</i>
 </p>
+
 ---
 
 ## ⚡ Quick Setup
