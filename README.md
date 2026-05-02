@@ -1,278 +1,359 @@
-# Cloud-Native Observability Platform on Amazon Elastic Kubernetes Service (EKS)
-![AWS](https://img.shields.io/badge/AWS-EKS%20%7C%20ECR%20%7C%20IAM-orange?logo=amazonaws)
-![Kubernetes](https://img.shields.io/badge/Kubernetes-EKS-blue?logo=kubernetes)
-![Terraform](https://img.shields.io/badge/IaC-Terraform-623CE4?logo=terraform)
-![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-black?logo=githubactions)
-![Docker](https://img.shields.io/badge/Container-Docker-2496ED?logo=docker)
-![Observability](https://img.shields.io/badge/Observability-Prometheus%20%7C%20Grafana%20%7C%20Alertmanager-red)
-![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?logo=fastapi)
-![Nginx](https://img.shields.io/badge/Web-Nginx-009639?logo=nginx)
-![Status](https://img.shields.io/badge/Status-Production--Ready-brightgreen)
+# Cloud-Native Observability Platform on Amazon EKS
+
+A production-grade platform that deploys containerised microservices on Amazon Elastic Kubernetes Service with a fully integrated observability stack. Infrastructure is provisioned entirely through Terraform, applications are packaged with Helm, and every deployment is driven by a GitHub Actions CI/CD pipeline triggered on push to `main`.
+
+**Cluster:** `eks-observability-cluster` &nbsp;|&nbsp; **Region:** `us-east-1` &nbsp;|&nbsp; **IaC:** Terraform >= 1.4.0
+
+## Table of Contents
+
+- [Architecture](#architecture)
+- [Repository Structure](#repository-structure)
+- [Technology Stack](#technology-stack)
+- [Prerequisites](#prerequisites)
+- [Infrastructure Provisioning](#infrastructure-provisioning)
+- [Application Deployment](#application-deployment)
+- [CI/CD Pipeline](#cicd-pipeline)
+- [Observability Stack](#observability-stack)
+- [Alert Rules](#alert-rules)
+- [Access Endpoints](#access-endpoints)
+- [Key Engineering Challenges](#key-engineering-challenges)
+- [Team](#team)
+- [License](#license)
+
+## Architecture
+
+The system is organised into four layers that compose a unified, fully automated platform.
+
+**External Access Layer**
+Traffic enters through an NGINX Ingress Controller of type `LoadBalancer`. Path-based routing directs `/` to the static website and `/api` to the FastAPI backend. Monitoring UIs are reachable at `/grafana`, `/prometheus`, and `/alertmanager`.
+
+**CI/CD Layer**
+GitHub Actions authenticates to AWS via OpenID Connect (no static credentials stored), builds and pushes Docker images to Amazon ECR tagged by Git commit SHA, updates kubeconfig, and deploys both Helm charts on every push to `main`.
+
+**AWS Infrastructure Layer**
+A Virtual Private Cloud (`10.0.0.0/16`) spans two Availability Zones with two public and two private subnets. The EKS cluster and its node group run in private subnets. Outbound internet access for nodes is provided through a NAT Gateway. Terraform state is stored in Amazon S3 with DynamoDB-based state locking.
+
+**Observability Layer**
+Prometheus, Grafana, Alertmanager, Blackbox Exporter, Node Exporter, and kube-state-metrics are deployed in the `monitoring` namespace via the `kube-prometheus-stack` Helm chart. The FastAPI application exposes a `/metrics` endpoint, which a `ServiceMonitor` custom resource scrapes every 15 seconds.
+
+```
+Internet
+    |
+    v
+NGINX Ingress Controller (LoadBalancer)
+    |
+    |-- /           --> website (NGINX Alpine, port 80)
+    |-- /api        --> fastapi-app (Uvicorn, port 8000)
+    |-- /grafana    --> Grafana (port 3000)
+    |-- /prometheus --> Prometheus (port 9090)
+    |-- /alertmanager --> Alertmanager (port 9093)
+
+EKS Node Group (private subnets)
+    |
+    |-- default namespace: fastapi-app (x2 replicas), website (x2 replicas)
+    |-- monitoring namespace: kube-prometheus-stack, blackbox-exporter
+    |-- ingress-nginx namespace: NGINX Ingress Controller
+```
+
+## Repository Structure
+
+```
+.
+├── .github/
+│   └── workflows/
+│       └── deploy.yml              # GitHub Actions CI/CD pipeline
+├── apps/
+│   ├── fastapi/
+│   │   ├── Dockerfile
+│   │   ├── main.py                 # FastAPI app with Prometheus instrumentation
+│   │   └── requirements.txt
+│   └── website/
+│       ├── Dockerfile
+│       └── index.html              # Static site served by NGINX
+├── helm/
+│   ├── fastapi/                    # Helm chart: FastAPI deployment
+│   │   ├── Chart.yaml
+│   │   ├── values.yaml
+│   │   └── templates/
+│   │       ├── deployment.yaml
+│   │       ├── service.yaml
+│   │       └── ingress.yaml
+│   ├── website/                    # Helm chart: website deployment
+│   │   ├── Chart.yaml
+│   │   ├── values.yaml
+│   │   └── templates/
+│   │       ├── deployment.yaml
+│   │       ├── service.yaml
+│   │       └── ingress.yaml
+│   ├── kube-prometheus-stack/
+│   │   └── values.yaml             # Observability stack overrides
+│   └── observability-ingress.yaml  # Ingress for monitoring UIs
+└── terraform/
+    ├── infra/                      # Layer 1: VPC, EKS, IAM, ECR, Bastion
+    │   ├── main.tf
+    │   ├── providers.tf
+    │   ├── variables.tf
+    │   ├── outputs.tf
+    │   ├── backend.tf
+    │   ├── github-oidc.tf
+    │   └── modules/
+    │       ├── network/
+    │       ├── eks/
+    │       ├── iam/
+    │       ├── ecr/
+    │       └── bastion/
+    └── apps/                       # Layer 2: Observability, Ingress, Routing
+        ├── main.tf
+        ├── providers.tf
+        ├── backend.tf
+        ├── remote-state.tf
+        ├── kubernetes-auth.tf
+        └── modules/
+            ├── observability/
+            │   ├── helm-kube-prometheus.tf
+            │   ├── fastapi-servicemonitor.tf
+            │   ├── fastapi-alerts.tf
+            │   ├── website-probe.tf
+            │   ├── website-alerts.tf
+            │   ├── blackbox-exporter.tf
+            │   └── grafana/
+            │       └── dashboards/
+            │           └── fastapi-golden-signals.json
+            ├── ingress-nginx/
+            └── observability-routing/
+```
+
+## Technology Stack
+
+| Category | Tools |
+|---|---|
+| Cloud | Amazon Web Services (us-east-1) |
+| Orchestration | Amazon EKS, Kubernetes 1.29 |
+| Containers | Docker, Amazon ECR |
+| IaC | Terraform >= 1.4.0, AWS Provider ~5.0 |
+| Package Management | Helm 3 |
+| Ingress | NGINX Ingress Controller |
+| Backend | FastAPI, Python 3.11-slim, Uvicorn |
+| Frontend | NGINX Alpine |
+| Metrics | Prometheus, prometheus-fastapi-instrumentator |
+| Visualization | Grafana |
+| Alerting | Alertmanager (SMTP routing) |
+| Probing | Prometheus Blackbox Exporter |
+| Cluster Metrics | Node Exporter, kube-state-metrics |
+| CI/CD | GitHub Actions |
+| Authentication | OpenID Connect, AWS IAM |
+| State Backend | Amazon S3 + DynamoDB |
+
+## Prerequisites
+
+Before you begin, ensure the following tools are installed and configured.
+
+- AWS CLI v2, configured with credentials that have sufficient IAM permissions
+- Terraform >= 1.4.0
+- `kubectl`
+- Helm 3
+- Docker
+- An SSH key pair at `~/.ssh/eks-bastion.pub` (used by the Bastion Host module)
+- An S3 bucket and DynamoDB table created for Terraform remote state:
+  - Bucket: `eks-observability-tf-state-<account-id>`
+  - DynamoDB table: `eks-observability-tf-lock`
+
+## Infrastructure Provisioning
+
+Provisioning is split into two independent Terraform execution layers. The `infra` layer must be applied first. The `apps` layer reads its outputs via remote state.
+
+### Layer 1: Core Infrastructure
+
+```bash
+cd terraform/infra
+
+terraform init
+terraform plan
+terraform apply
+```
+
+This provisions the VPC, subnets, Internet Gateway, NAT Gateway, EKS cluster and node group, IAM roles (cluster, node, GitHub Actions), ECR repositories, and Bastion Host.
+
+Once applied, configure local access to the cluster:
+
+```bash
+aws eks update-kubeconfig \
+  --region us-east-1 \
+  --name eks-observability-cluster
 
-### 🎓 Major Project (B.Tech CSE - 8th Semester)
-**Institution:** Jagannath University (Faculty of Engineering and Technology)  
-**Academic Session:** 2025–26  
+kubectl get nodes
+```
+
+### Layer 2: Platform Applications
+
+```bash
+cd terraform/apps
+
+terraform init
+terraform plan
+terraform apply
+```
+
+This deploys the NGINX Ingress Controller, the full `kube-prometheus-stack`, Blackbox Exporter, ServiceMonitor, PrometheusRule, and Probe custom resources, and all ingress routing for the monitoring UIs.
+
+> **Note:** The `aws-auth` ConfigMap is managed by `terraform/apps/kubernetes-auth.tf`. It maps the EKS node role, Bastion Host role, and GitHub Actions role to the appropriate Kubernetes RBAC groups. This must be applied before the CI/CD pipeline can reach the cluster.
+
+## Application Deployment
+
+Applications can be deployed manually via Helm or automatically through the CI/CD pipeline.
+
+### Manual Helm Deployment
+
+```bash
+# FastAPI
+helm upgrade --install fastapi-app ./helm/fastapi \
+  --namespace default \
+  --set image.repository=<account-id>.dkr.ecr.us-east-1.amazonaws.com/eks-observability-fastapi \
+  --set image.tag=<tag>
 
-### 👨‍💻 Team Members
-- Abhay Kumar Saini (0201220001)
-- Abhijeet Kumar (0201220002)
-- Vaibhav Sarkar (0201220150)
+# Website
+helm upgrade --install website ./helm/website \
+  --namespace default \
+  --set image.repository=<account-id>.dkr.ecr.us-east-1.amazonaws.com/eks-observability-website \
+  --set image.tag=<tag>
+```
 
-### 👨‍🏫 Project Guide
-- Prof. (Dr.) Om Prakash Sharma
+### Verify Deployments
 
----
+```bash
+kubectl get pods -n default
+kubectl get pods -n monitoring
+kubectl get ingress -n default
+kubectl get svc -n ingress-nginx
+```
 
-## 🚀 Quick Overview
+## CI/CD Pipeline
 
-This project implements a **cloud-native observability platform on Amazon Elastic Kubernetes Service (Amazon EKS)**, showcasing how modern applications can be **automated, deployed, and monitored at scale**.
+The pipeline is defined in `.github/workflows/deploy.yml` and runs automatically on every push to `main`.
 
-It integrates **containerization, Kubernetes orchestration, CI/CD automation, and observability** into a unified end-to-end system.
+**Pipeline Steps**
 
----
+1. Authenticate to AWS using OpenID Connect via `aws-actions/configure-aws-credentials@v4`. No static credentials are stored in the repository.
+2. Log in to Amazon ECR.
+3. Build the FastAPI Docker image from `./apps/fastapi` and push it tagged with the commit SHA.
+4. Build the Website Docker image from `./apps/website` and push it tagged with the commit SHA.
+5. Update kubeconfig to point at `eks-observability-cluster`.
+6. Deploy the FastAPI Helm chart with `helm upgrade --install`, passing the ECR repository and commit SHA as image values.
+7. Deploy the Website Helm chart with the same approach.
 
-### **What This Project Includes**
+**Required GitHub Repository Setup**
 
-- Backend API built with **FastAPI**
-- Static frontend served via **NGINX**
-- Containerized applications deployed on **Amazon EKS**
-- Infrastructure provisioned using **Terraform (Infrastructure as Code)**
-- Deployment automated using **Helm and GitHub Actions (CI/CD)**
+The following must be configured in your repository before the pipeline can run.
 
----
+GitHub Actions OIDC must be trusted by the IAM role `eks-observability-github-actions-role`. This is provisioned by `terraform/infra/github-oidc.tf` and `terraform/infra/modules/iam/github-actions.tf`.
 
-### **Core Capabilities**
+Set the correct repository in the IAM trust policy condition:
 
-- 📦 Containerized application deployment  
-- ☁️ Automated cloud infrastructure provisioning  
-- 🔄 CI/CD pipeline (build → push → deploy)  
-- 📊 Real-time monitoring with Prometheus & Grafana  
-- 🚨 Alerting via Alertmanager  
-- 🌐 Ingress-based routing for external access  
+```
+token.actions.githubusercontent.com:sub = repo:<your-github-username>/<your-repo-name>:*
+```
 
----
+No repository secrets are required for AWS authentication when using OpenID Connect.
 
-### **Why This Project Matters**
+## Observability Stack
 
-Modern systems require more than deployment — they need **visibility, reliability, and automation**.
+All components run in the `monitoring` namespace and are deployed as part of the `kube-prometheus-stack` Helm release.
 
-This project demonstrates how to:
-- Monitor system performance in real time  
-- Detect failures early  
-- Maintain reliability in a cloud-native environment  
+**Prometheus**
+Scrapes metrics from the FastAPI `/metrics` endpoint via a `ServiceMonitor` resource (interval: 15 seconds), along with cluster-wide metrics from Node Exporter and kube-state-metrics. Retention period is 7 days. Alert rules are evaluated continuously from `PrometheusRule` custom resources.
 
----
+**Grafana**
+Loads a custom Golden Signals dashboard at startup via a ConfigMap sidecar. The dashboard covers request rate (RPS), error rate (5xx), P95 latency, P99 latency, FastAPI CPU usage, and FastAPI memory usage. Dashboard definitions live in `terraform/apps/modules/observability/grafana/dashboards/fastapi-golden-signals.json`.
 
-### **In One Line**
+Grafana is configured to serve from the `/grafana` subpath:
 
-> A cloud-native platform that automates deployment and provides real-time observability using modern DevOps practices.
+```ini
+root_url = http://<elb-hostname>/grafana
+serve_from_sub_path = true
+```
 
----
+**Alertmanager**
+Receives firing alerts from Prometheus, groups them by `alertname`, and routes notifications via SMTP email. Group wait is 10 seconds, repeat interval is 1 hour. Warning and Critical severity levels are supported.
 
-## 🧠 Problem & Solution
+**Blackbox Exporter**
+A `Probe` custom resource configures the Blackbox Exporter to send periodic HTTP GET requests to `http://website.default.svc.cluster.local:80/`. If the HTTP probe fails, a `WebsiteDown` alert fires through Alertmanager.
 
-### **Problem**
+## Alert Rules
 
-Modern cloud-native applications use microservices and containers, which makes them scalable but also harder to manage.
+| Alert | Condition | Severity | Notes |
+|---|---|---|---|
+| `FastAPIHighErrorRate` | `sum(rate(http_requests_total{status=~"5.."}[1m])) > 1` | Warning | Fires after 1 minute |
+| `FastAPIHighLatency` | P95 latency > 1 second over 5-minute window | Warning | Fires after 1 minute |
+| `FastAPIDown` | Zero available replicas for `fastapi-app` deployment | Critical | Fires after 30 seconds |
+| `WebsiteDown` | Blackbox HTTP probe returns failure | Critical | Fires after 30 seconds |
+| `KubeControllerManagerDown` | Controller Manager not visible inside cluster | Info | Expected on EKS -- managed by AWS |
+| `KubeSchedulerDown` | Scheduler not visible inside cluster | Info | Expected on EKS -- managed by AWS |
+| `Watchdog` | Always firing | Info | Confirms alerting pipeline is operational |
 
-Common challenges include:
-- Limited visibility into system performance  
-- Delayed detection of failures  
-- Lack of centralized monitoring and alerting  
-- Complex and manual deployment processes  
+## Access Endpoints
 
-Without proper observability, issues like high error rates or slow APIs can go unnoticed until they impact users.
+After the NGINX Ingress Controller provisions an AWS Load Balancer, retrieve its hostname:
 
----
+```bash
+kubectl get svc nginx-ingress-ingress-nginx-controller -n ingress-nginx
+```
 
-### **Solution**
+| Service | Path |
+|---|---|
+| Static Website | `http://<elb-hostname>/` |
+| FastAPI Backend | `http://<elb-hostname>/api/` |
+| Grafana | `http://<elb-hostname>/grafana` |
+| Prometheus | `http://<elb-hostname>/prometheus` |
+| Alertmanager | `http://<elb-hostname>/alertmanager` |
 
-This project solves these challenges by building a **fully automated and observable cloud-native platform on Amazon EKS**.
+Default Grafana credentials: `admin` / `prom-operator`
 
-It integrates:
+## Key Engineering Challenges
 
-- **Terraform (Infrastructure as Code)** → Automated and consistent infrastructure setup  
-- **GitHub Actions (CI/CD)** → Automated build and deployment pipeline  
-- **Kubernetes (EKS)** → Scalable application orchestration  
-- **Helm** → Simplified and versioned deployments  
-- **Prometheus + Grafana + Alertmanager** → Real-time monitoring, visualization, and alerting  
+A full document covering over 100 challenges and resolutions is available in `docs/challenges-and-learnings.md`. The following is a summary of the most significant ones encountered during this project.
 
----
+**Cross-module resource referencing in Terraform** -- Direct references between Terraform modules caused plan failures. Resolved by surfacing all required values as explicit outputs from `terraform/infra` and consuming them in `terraform/apps` via `terraform_remote_state`.
 
-### **Key Objectives**
+**EKS RBAC access failure** -- The cluster was inaccessible to the CI/CD pipeline and Bastion Host because IAM roles were not mapped. Resolved by configuring the `aws-auth` ConfigMap with correct group bindings (`system:masters` for admin roles, `system:nodes` for node roles).
 
-- Build a containerized application environment using Docker and Kubernetes  
-- Automate infrastructure provisioning using Terraform  
-- Implement CI/CD for continuous deployment  
-- Enable real-time observability and monitoring  
-- Configure alerting for proactive issue detection  
-- Simulate a production-like cloud-native system  
+**Custom Resource Definitions not installed before usage** -- `ServiceMonitor` and `PrometheusRule` resources failed to apply because the CRDs had not yet been installed by the kube-prometheus-stack Helm release. Resolved by enforcing ordering with `depends_on` in Terraform.
 
----
+**FastAPI metrics endpoint absent** -- Prometheus returned no targets for the FastAPI ServiceMonitor. Resolved by adding `prometheus-fastapi-instrumentator` and calling `Instrumentator().instrument(app).expose(app)` in `main.py`.
 
-### **Outcome**
+**Label mismatch in Kubernetes selectors** -- `app: FastAPI` in one place and `app: fastapi` in another silently broke the ServiceMonitor binding. All labels were standardised across Helm templates and values files.
 
-The system enables:
-- Automated deployments with minimal manual effort  
-- Real-time visibility into application and infrastructure metrics  
-- Faster detection and resolution of system issues  
+**ImagePullBackOff on worker nodes** -- Pods failed to start because the ECR URI was malformed and the node role lacked `AmazonEC2ContainerRegistryReadOnly`. Both the URI and IAM policy attachment were corrected.
 
----
+**OpenID Connect setup for GitHub Actions** -- Replaced static AWS access keys with OIDC-based authentication. The GitHub OIDC provider is provisioned by Terraform and the IAM role trust policy is scoped to the specific repository and branch pattern.
 
-## 🏗️ Architecture Overview
+**Helm release stuck in failed state** -- A partially failed release blocked all subsequent deployments. The release was deleted manually (`helm delete`) and redeployed with corrected chart values.
 
-📄 Detailed Architecture: [docs/architecture.md](docs/architecture.md)
+**Terraform destroy failures** -- AWS Load Balancers and Elastic Network Interfaces created by Kubernetes remained attached, blocking `terraform destroy`. Kubernetes Ingress and Service resources must be deleted before running destroy so AWS can clean up the associated resources.
 
----
+**Grafana subpath routing** -- Grafana assets failed to load when served behind an ingress at a non-root path. Resolved by setting `root_url` and `serve_from_sub_path = true` in the `grafana.ini` server block within the Helm values.
 
-### **Architecture Diagram**
+## Cleanup
 
-<p align="center">
-  <img src="docs/images/architecture-image.png" width="100%"><br>
-  <b>Figure:</b> <i>End-to-End Architecture of the Cloud-Native Observability Platform on Amazon EKS</i>
-</p>
+To avoid ongoing AWS charges, destroy resources in reverse order.
 
----
+```bash
+# 1. Delete Kubernetes workloads that create AWS resources (ELBs, ENIs)
+kubectl delete ingress --all -n default
+kubectl delete ingress --all -n monitoring
+kubectl delete svc -n ingress-nginx nginx-ingress-ingress-nginx-controller
 
-### **High-Level Design**
+# 2. Destroy apps layer
+cd terraform/apps
+terraform destroy
 
-The system follows a **layered cloud-native architecture**, ensuring modularity, scalability, and clear separation of responsibilities.
+# 3. Destroy infra layer
+cd terraform/infra
+terraform destroy
+```
 
----
-
-### **Architecture Layers**
-
-#### **1. External Layer**
-- Users access the system via a web browser  
-- Developers push code to GitHub, triggering automation  
-
----
-
-#### **2. CI/CD Layer**
-- GitHub Actions builds and deploys applications  
-- Docker images are pushed to Amazon ECR  
-- Helm deploys applications to EKS  
-- OIDC ensures secure authentication  
-
----
-
-#### **3. Infrastructure & Application Layer**
-- AWS VPC with public/private subnets ensures secure networking  
-- Amazon EKS runs containerized applications  
-- NGINX Ingress routes traffic:
-  - `/` → Website  
-  - `/api` → FastAPI  
-
-- Applications:
-  - FastAPI backend (API + metrics)  
-  - Static website frontend  
-
----
-
-#### **4. Observability Layer**
-- Prometheus → Metrics collection  
-- Grafana → Visualization dashboards  
-- Alertmanager → Alert notifications  
-- Blackbox Exporter → External uptime monitoring  
-
----
-
-### **End-to-End Flow**
-
-1. Developer pushes code → CI/CD pipeline triggered  
-2. Application is built and deployed to EKS  
-3. Users access services via Ingress  
-4. Prometheus collects metrics  
-5. Grafana visualizes system performance  
-6. Alerts are triggered when thresholds are exceeded  
-
----
-
-### **Summary**
-
-> A layered architecture that integrates deployment, infrastructure, and observability into a single automated and scalable system.
-
----
-## ⚙️ Technology Stack
-
-| **Category** | **Technology** | **Purpose** |
-|-------------|---------------|------------|
-| Cloud Provider | AWS | Scalable cloud infrastructure |
-| Container Orchestration | Amazon EKS | Managed Kubernetes for container deployment |
-| Containerization | Docker | Application packaging and portability |
-| Infrastructure as Code | Terraform | Automated infrastructure provisioning |
-| CI/CD Pipeline | GitHub Actions | Build, push, and deployment automation |
-| Container Registry | Amazon ECR | Secure storage for Docker images |
-| Backend Framework | FastAPI | High-performance Python API framework |
-| Web Server | NGINX | Serves frontend and reverse proxy |
-| Kubernetes Package Manager | Helm | Simplified Kubernetes deployments |
-| Ingress Controller | NGINX Ingress | External traffic routing |
-| Monitoring | Prometheus | Metrics collection |
-| Visualization | Grafana | Dashboard visualization |
-| Alerting | Alertmanager | Alert notifications |
-| External Monitoring | Blackbox Exporter | Website uptime monitoring |
-| Kubernetes Monitoring | ServiceMonitor, PrometheusRule | Monitoring configuration |
-| Version Control | GitHub | Source code management |
-| Authentication | OIDC | Secure GitHub → AWS authentication |
-| State Management | S3 | Terraform state storage |
-| State Locking | DynamoDB | Prevent concurrent Terraform runs |
-| Compute Access | EC2 Bastion Host | Secure cluster access |
-
----
-
-## 🔄 System Workflow
-
-📄 Detailed Workflow: [docs/methodology.md](docs/methodology.md)
-
----
-
-### **End-to-End Flow**
-
-1. Developer pushes code → GitHub  
-2. CI/CD pipeline (GitHub Actions) builds and pushes Docker images to ECR  
-3. Helm deploys applications to Amazon EKS  
-4. Applications run inside Kubernetes (pods, services, ingress)  
-5. Users access services via NGINX Ingress  
-6. Prometheus collects metrics from applications and cluster  
-7. Grafana visualizes system performance  
-8. Alertmanager sends alerts when issues are detected  
-9. Blackbox Exporter monitors external availability  
-
----
-
-### **Workflow Summary**
-
-> Code → Build → Deploy → Run → Monitor → Alert
-
----
-
-### **Key Principles**
-
-- Automation-first deployment (Terraform + CI/CD)  
-- Scalable orchestration using Kubernetes  
-- Built-in observability for real-time visibility  
-- Continuous monitoring and feedback loop  
-
----
-
-## 📊 Key Features / Highlights
-
-- 🚀 Fully automated infrastructure provisioning using Terraform  
-- 🔄 End-to-end CI/CD pipeline with GitHub Actions and OIDC authentication  
-- ☸️ Scalable Kubernetes deployment on Amazon EKS using Helm  
-- 📦 Containerized applications using Docker  
-- 📊 Real-time monitoring with Prometheus and Grafana dashboards  
-- 🚨 Intelligent alerting using Alertmanager  
-- 🌐 Ingress-based routing with NGINX for unified access  
-- 🔍 External uptime monitoring using Blackbox Exporter  
-
----
-
-## 📸 Screenshots / Demonstration
+## Screenshots / Demonstration
 
 This section highlights the **end-to-end system behavior**, from user access to observability and alerting.
-
----
 
 ### **Application (Frontend & API)**
 
@@ -286,7 +367,7 @@ This section highlights the **end-to-end system behavior**, from user access to 
   <b>Figure:</b> <i>FastAPI backend responding successfully via public endpoint</i>
 </p>
 
----
+
 
 ### **CI/CD Pipeline**
 
@@ -295,7 +376,7 @@ This section highlights the **end-to-end system behavior**, from user access to 
   <b>Figure:</b> <i>GitHub Actions pipeline automatically building, pushing to ECR, and deploying to EKS</i>
 </p>
 
----
+
 
 ### **Kubernetes Ingress (Public Access)**
 
@@ -304,7 +385,7 @@ This section highlights the **end-to-end system behavior**, from user access to 
   <b>Figure:</b> <i>Ingress routing traffic from external ALB to services inside the Kubernetes cluster</i>
 </p>
 
----
+
 
 ### **Observability — Request → Metrics Correlation**
 
@@ -313,7 +394,7 @@ This section highlights the **end-to-end system behavior**, from user access to 
   <b>Figure:</b> <i>Traffic generation directly reflected in metrics, validating observability pipeline</i>
 </p>
 
----
+
 
 ### **Prometheus Metrics Validation**
 
@@ -322,7 +403,7 @@ This section highlights the **end-to-end system behavior**, from user access to 
   <b>Figure:</b> <i>Prometheus querying real-time metrics (request rate) from instrumented FastAPI service</i>
 </p>
 
----
+
 
 ### **Alerting Pipeline (Real-time Firing)**
 
@@ -331,7 +412,6 @@ This section highlights the **end-to-end system behavior**, from user access to 
   <b>Figure:</b> <i>Real-time alert triggered and delivered via email when system thresholds are breached</i>
 </p>
 
----
 
 ### **Grafana dashboard (FastApi)**
 
@@ -340,181 +420,17 @@ This section highlights the **end-to-end system behavior**, from user access to 
   <b>Figure:</b> <i>Grafana dashboard visualizing FastAPI Golden Signals — request rate, latency (P95/P99), error rate, and resource usage (CPU & memory) in real time</i>
 </p>
 
----
 
-## ⚡ Quick Setup
+## Team
 
-📄 Detailed Setup Guide: [docs/setup-and-usage-guide.md](docs/setup-and-usage-guide.md)
+**Abhay Kumar Saini** -- Infrastructure design and provisioning (Terraform, EKS), observability stack deployment, Prometheus and Alertmanager configuration, Grafana dashboard authoring, CI/CD pipeline setup with OpenID Connect.
 
----
+**Abhijeet Kumar** -- FastAPI backend application with Prometheus instrumentation, static website, Docker image configuration, and Kubernetes integration.
 
-### **Prerequisites**
+**Vaibhav Sarkar** -- Helm chart development for FastAPI and website, Kubernetes resource configuration, failure simulation and load testing, end-to-end alerting validation.
 
-Ensure the following tools are installed:
+Bachelor of Technology -- Computer Science and Engineering, Academic Session 2025-26.
 
-- Git  
-- AWS CLI  
-- kubectl  
-- Docker  
-- Terraform  
-- Helm  
+## License
 
----
-
-### **Setup Steps (High-Level)**
-
-1. **Clone the repository**
-2. **Provision infrastructure** using Terraform (VPC, EKS, IAM, ECR)  
-3. **Configure kubectl** to connect to the EKS cluster  
-4. **Deploy observability stack** (Prometheus, Grafana, Alertmanager)  
-5. **Push code to GitHub** to trigger CI/CD deployment  
-6. **Verify deployment** using `kubectl` commands  
-7. **Access services** via Ingress endpoints  
-
----
-
-### **Access Points**
-
-| Path | Service |
-|------|--------|
-| `/` | Website |
-| `/api` | FastAPI |
-| `/grafana` | Grafana |
-| `/prometheus` | Prometheus |
-| `/alertmanager` | Alertmanager |
-
----
-
-### **Note**
-
-> Follow the detailed guide for complete commands, validation steps, and troubleshooting.
----
-
-## 🧩 Key Challenges
-
-📄 Detailed Challenges: [docs/challenges-and-learnings.md](docs/challenges-and-learnings.md)
-
----
-
-- ⚙️ Terraform module dependencies required proper input/output design to avoid cross-module failures  
-- 🔐 EKS access issues due to IAM–RBAC misconfiguration (`aws-auth` mapping)  
-- 📦 CI/CD authentication complexity solved using OIDC instead of static credentials  
-- ☸️ Kubernetes issues (labels, ingress, CRDs) caused deployment and routing failures  
-- 📊 Observability gaps (missing `/metrics`) initially prevented Prometheus from scraping data  
-- 🚨 Alerting pipeline misconfigurations required end-to-end validation and testing  
-
----
-
-### **Key Learning**
-
-> Building cloud-native systems requires tight integration between infrastructure, deployment, and observability — even small misconfigurations can break the entire workflow.
----
-
-## 👥 Contributors
-
-### **Project Team**
-
-| Name | Role |
-|------|------|
-| **Abhay Kumar Saini** | DevOps, Infrastructure & Observability |
-| **Abhijeet Kumar** | Application Development & Integration |
-| **Vaibhav Sarkar** | Kubernetes Deployment & Testing |
-
----
-
-### **Academic Context**
-
-- B.Tech — Computer Science and Engineering  
-- Faculty of Engineering and Technology  
-- Jagannath University, Jaipur  
-- Academic Session: 2025–2026  
-
----
-
-### **Guidance**
-
-- **Prof. (Dr.) Om Prakash Sharma** — Project Guide & Coordinator  
-
----
-
-### **Summary**
-
-> A collaborative academic project combining DevOps, cloud infrastructure, and observability practices.
----
-
-## 📚 Detailed Documentation
-
-For in-depth explanations and full implementation details, refer to the following documents:
-
-- 🏗️ Architecture → [docs/architecture.md](docs/architecture.md)  
-- 🔄 Methodology & Workflow → [docs/methodology.md](docs/methodology.md)  
-- ☁️ Infrastructure (Terraform) → [docs/infrastructure.md](docs/infrastructure.md)  
-- ⚙️ CI/CD Pipeline → [docs/cicd.md](docs/cicd.md)  
-- ☸️ Kubernetes Deployment → [docs/kubernetes.md](docs/kubernetes.md)  
-- 📊 Observability → [docs/observability.md](docs/observability.md)  
-- 🚨 Alerting → [docs/alerting.md](docs/alerting.md)  
-- 📈 Results & Discussion → [docs/results.md](docs/results.md)  
-- ⚠️ Limitations → [docs/limitations.md](docs/limitations.md)  
-- 🔮 Future Scope → [docs/future-scope.md](docs/future-scope.md)  
-- 📚 References → [docs/references.md](docs/references.md)  
-- 🧩 Challenges & Learnings → [docs/challenges-and-learnings.md](docs/challenges-and-learnings.md)  
-- ⚡ Setup Guide → [docs/setup-and-usage-guide.md](docs/setup-and-usage-guide.md)
-
----
-
-## 📜 License
-
-This project is licensed under the **MIT License**, which allows flexible use while ensuring proper credit to the original authors.
-
-
-### 🔹 Permissions
-
-You are free to:
-
-* Use this project for **personal, academic, or commercial purposes**
-* Modify and improve the code
-* Share or distribute the project
-
----
-
-### 🔹 Conditions
-
-* The original license and copyright notice must be included
-* Proper credit must be given to the authors
-
----
-
-### 📄 MIT License
-
-```
-MIT License
-
-Copyright (c) 2026 Abhay Kumar Saini
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
----
-
-### 📌 Note
-
-* This license makes the project **open-source and reusable**
-* Anyone can build upon this work while giving proper credit
-
----
+Released under the [MIT License](LICENSE). Permission is granted to use, copy, modify, and distribute this software with proper attribution to the original authors.
