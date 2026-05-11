@@ -1,156 +1,196 @@
-##  Kubernetes Deployment (Helm)
+# Kubernetes & Helm
 
-### **Overview**
+Application workloads are packaged as Helm charts and deployed to EKS via the CI/CD pipeline. The observability stack is deployed separately through Terraform's `helm_release` resource.
 
-In this project, applications are deployed on Kubernetes using **Helm**, a package manager for Kubernetes that simplifies deployment and management of applications.
 
-Helm allows us to:
+## Charts
 
-* Define Kubernetes resources as reusable templates
-* Manage configurations easily
-* Perform upgrades and rollbacks efficiently
+| Chart | Path | Namespace | Purpose |
+|---|---|---|---|
+| `fastapi` | `helm/fastapi/` | `default` | FastAPI backend service |
+| `website` | `helm/website/` | `default` | Static website (NGINX) |
 
-👉 This makes deployments **consistent, scalable, and maintainable**
+The observability stack (`kube-prometheus-stack`, Blackbox Exporter) is managed by Terraform — see [`docs/infrastructure.md`](infrastructure.md#observability-module-moduleobservability).
 
----
 
-## **What is Helm (Simple Explanation)**
 
-Helm works like a package manager (similar to npm or apt), but for Kubernetes.
+## Resource Definitions
 
-* A **Helm Chart** is a collection of Kubernetes YAML templates
-* It allows dynamic configuration using values
+Each chart defines the following Kubernetes resources:
 
----
+### Deployment
 
-## **Helm Charts Used in the Project**
+Both workloads run with 2 replicas. FastAPI includes liveness and readiness probes:
 
-The project uses two custom Helm charts:
+```yaml
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 10
+  periodSeconds: 15
 
-| **Application** | **Chart Location** | **Purpose**                 |
-| --------------- | ------------------ | --------------------------- |
-| FastAPI Backend | `helm/fastapi`     | Deploys backend API service |
-| Website         | `helm/website`     | Deploys static frontend     |
-
----
-
-## **Key Kubernetes Resources Created**
-
-Each Helm chart defines the following core resources:
-
----
-
-### **1. Deployment**
-
-* Manages application pods
-* Ensures desired number of replicas are running
-
-**FastAPI Example:**
-
-* Multiple replicas for scalability
-* Includes:
-
-  * **Liveness Probe** → checks if app is alive
-  * **Readiness Probe** → checks if app is ready to serve traffic
-
-👉 Helps Kubernetes automatically recover from failures
-
----
-
-### **2. Service**
-
-* Exposes the application internally within the cluster
-* Uses:
-
-  * **ClusterIP** (internal access)
-
-👉 Enables communication between services
-
----
-
-### **3. Ingress**
-
-* Provides external access to services via HTTP/HTTPS
-* Managed by **NGINX Ingress Controller**
-
-**Routing Rules:**
-
-* `/` → Website
-* `/api` → FastAPI backend
-
-👉 Acts as a **single entry point** for users
-
----
-
-## **Configuration Using Values.yaml**
-
-Each Helm chart uses a `values.yaml` file to define:
-
-* Number of replicas
-* Container image details
-* Ports
-* Labels
-
-Example:
-
-* FastAPI runs on port **8000**
-* Website runs on port **80**
-
-👉 Allows easy customization without modifying templates
-
----
-
-## **Dynamic Deployment via CI/CD**
-
-During deployment, Helm receives dynamic values:
-
-* Image repository (from ECR)
-* Image tag (commit SHA)
-
-This ensures:
-
-* Every deployment uses the latest image
-* Version tracking is maintained
-
----
-
-## **Deployment Command**
-
-The CI/CD pipeline uses:
-
-```
-helm upgrade --install <release-name> <chart-path>
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 5
+  periodSeconds: 10
 ```
 
-This command:
+> Resource requests and limits are not currently defined (`resources: {}`). This is a known gap — see [challenges-and-learnings.md §31](challenges-and-learnings.md#31-fastapi-deployment-not-production-ready).
 
-* Installs the application if not present
-* Upgrades it if already deployed
+### Service
 
----
+Both workloads use `ClusterIP` services — external access is handled exclusively through the Ingress layer, not via `LoadBalancer`-type services.
 
-## **Deployment Workflow**
+| Service | Port | Target Port |
+|---|---|---|
+| `fastapi-app` | 8000 | 8000 |
+| `website` | 80 | 80 |
 
-1. Helm reads chart templates
-2. Values are injected dynamically
-3. Kubernetes resources are created/updated
-4. Pods are scheduled and started
-5. Services and ingress expose the application
+### Ingress
 
----
+Managed by the NGINX Ingress Controller. Path routing:
 
-## **Key Benefits of Using Helm**
+| Path | Service | PathType |
+|---|---|---|
+| `/` | `website` | `Prefix` |
+| `/api(/\|$)(.*)` | `fastapi-app` | `ImplementationSpecific` |
 
-* 📦 **Reusability** → Templates can be reused across environments
-* 🔄 **Easy Updates** → Upgrade without downtime
-* ⚙️ **Configuration Management** → Centralized values
-* 📊 **Scalability** → Easily adjust replicas
-* 🔁 **Rollback Support** → Revert to previous versions
+The FastAPI route uses a regex with `rewrite-target: /$2` to strip the `/api` prefix before forwarding to the application. The website route uses a plain `Prefix` match with no rewrite.
 
----
+Ingress resource names are templated using `{{ .Release.Name }}` to prevent naming conflicts across deployments:
 
-### **In Simple Words**
+```yaml
+metadata:
+  name: {{ .Release.Name }}-ingress
+```
 
-> Helm simplifies Kubernetes deployment by packaging everything into reusable templates, making application deployment fast, consistent, and easy to manage.
 
----
+## values.yaml
+
+Key configurable values per chart:
+
+```yaml
+# helm/fastapi/values.yaml
+replicaCount: 2
+
+image:
+  repository: ""     # injected by CI/CD: <account>.dkr.ecr.<region>.amazonaws.com/eks-observability-fastapi
+  tag: ""            # injected by CI/CD: $GITHUB_SHA
+  pullPolicy: Always
+
+service:
+  type: ClusterIP
+  port: 8000
+
+ingress:
+  enabled: true
+  className: nginx
+```
+
+```yaml
+# helm/website/values.yaml
+replicaCount: 2
+
+image:
+  repository: ""     # injected by CI/CD
+  tag: ""
+  pullPolicy: Always
+
+service:
+  type: ClusterIP
+  port: 80
+```
+
+
+## Deployment
+
+### CI/CD (standard path)
+
+The GitHub Actions pipeline builds, tags, and deploys on every push to `main`:
+
+```bash
+helm upgrade --install fastapi-app ./helm/fastapi \
+  --namespace default \
+  --set image.repository=$ECR_REGISTRY/eks-observability-fastapi \
+  --set image.tag=$GITHUB_SHA
+
+helm upgrade --install website ./helm/website \
+  --namespace default \
+  --set image.repository=$ECR_REGISTRY/eks-observability-website \
+  --set image.tag=$GITHUB_SHA
+```
+
+`--install` makes the command idempotent — it installs on first run and upgrades on subsequent runs.
+
+### Manual deployment
+
+```bash
+# Set environment
+export AWS_REGION=us-east-1
+export ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+export ECR_REGISTRY=$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+export IMAGE_TAG=<commit-sha>
+
+# Deploy FastAPI
+helm upgrade --install fastapi-app ./helm/fastapi \
+  --namespace default \
+  --set image.repository=$ECR_REGISTRY/eks-observability-fastapi \
+  --set image.tag=$IMAGE_TAG
+
+# Deploy Website
+helm upgrade --install website ./helm/website \
+  --namespace default \
+  --set image.repository=$ECR_REGISTRY/eks-observability-website \
+  --set image.tag=$IMAGE_TAG
+```
+
+
+## Validation
+
+```bash
+# Release status
+helm list -n default
+helm status fastapi-app -n default
+
+# Pod health
+kubectl get pods -n default
+kubectl rollout status deployment/fastapi-app -n default
+kubectl rollout status deployment/website -n default
+
+# Application endpoints
+kubectl get ingress -n default
+
+# FastAPI health and metrics
+kubectl port-forward deployment/fastapi-app 8000:8000 -n default
+curl http://localhost:8000/health
+curl http://localhost:8000/metrics
+```
+
+
+## Rollback
+
+```bash
+# View release history
+helm history fastapi-app -n default
+
+# Roll back to previous revision
+helm rollback fastapi-app -n default
+
+# Roll back to a specific revision
+helm rollback fastapi-app 2 -n default
+```
+
+
+## Troubleshooting
+
+| Symptom | Command |
+|---|---|
+| Pod not starting | `kubectl describe pod <pod> -n default` |
+| Image pull failure | `kubectl get events -n default --sort-by='.lastTimestamp'` |
+| Helm release stuck in failed state | `helm uninstall <release> -n default && helm upgrade --install ...` |
+| Ingress not routing correctly | `kubectl describe ingress -n default` |
+| Application logs | `kubectl logs -l app=fastapi -n default --tail=100` |
+
