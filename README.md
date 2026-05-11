@@ -36,24 +36,10 @@ A Virtual Private Cloud (`10.0.0.0/16`) spans two Availability Zones with two pu
 **Observability Layer**
 Prometheus, Grafana, Alertmanager, Blackbox Exporter, Node Exporter, and kube-state-metrics are deployed in the `monitoring` namespace via the `kube-prometheus-stack` Helm chart. The FastAPI application exposes a `/metrics` endpoint, which a `ServiceMonitor` custom resource scrapes every 15 seconds.
 
-```
-Internet
-    |
-    v
-NGINX Ingress Controller (LoadBalancer)
-    |
-    |-- /           --> website (NGINX Alpine, port 80)
-    |-- /api        --> fastapi-app (Uvicorn, port 8000)
-    |-- /grafana    --> Grafana (port 3000)
-    |-- /prometheus --> Prometheus (port 9090)
-    |-- /alertmanager --> Alertmanager (port 9093)
-
-EKS Node Group (private subnets)
-    |
-    |-- default namespace: fastapi-app (x2 replicas), website (x2 replicas)
-    |-- monitoring namespace: kube-prometheus-stack, blackbox-exporter
-    |-- ingress-nginx namespace: NGINX Ingress Controller
-```
+<p align="center">
+  <img src="docs/images/architecture-image.png" width="100%"><br>
+  <b>Figure:</b> <i>Architecture Diagram of the System</i>
+</p>
 
 ## Repository Structure
 
