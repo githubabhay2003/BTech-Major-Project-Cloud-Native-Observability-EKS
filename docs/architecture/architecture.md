@@ -1,4 +1,4 @@
-## 🏗️ Architecture Overview
+## Architecture Overview
 
 ### **Architecture Diagram**
 
@@ -7,7 +7,6 @@
   <b>Figure:</b> <i>End-to-End Architecture of the Cloud-Native Observability Platform on Amazon EKS</i>
 </p>
 
----
 
 ### **High-Level Architecture Description**
 
@@ -15,7 +14,6 @@ The system is designed as a **layered cloud-native architecture**, where each la
 
 The architecture can be understood in **four main layers**:
 
----
 
 ## **1. External Layer (User Interaction)**
 
@@ -23,9 +21,8 @@ The architecture can be understood in **four main layers**:
 * Requests are sent to the application via the internet
 * Developers push code changes to **GitHub**, triggering the deployment pipeline
 
-👉 This layer represents both **end-users** and **developers**
+ This layer represents both **end-users** and **developers**
 
----
 
 ## **2. CI/CD Layer (Automation Layer)**
 
@@ -50,9 +47,8 @@ This layer handles **Continuous Integration and Continuous Deployment (CI/CD)**.
 4. Images are pushed to Amazon ECR
 5. Helm deploys updated applications to EKS
 
-👉 This ensures **fully automated deployments without manual intervention**
+ This ensures **fully automated deployments without manual intervention**
 
----
 
 ## **3. AWS Infrastructure Layer**
 
@@ -71,9 +67,8 @@ This is the **core cloud environment** where everything runs.
   * Amazon EKS Cluster
   * Worker Nodes (Node Group)
 
-👉 Ensures **secure and isolated deployment of workloads**
+ Ensures **secure and isolated deployment of workloads**
 
----
 
 ### **EKS Cluster (Kubernetes Layer)**
 
@@ -88,7 +83,6 @@ Inside the cluster:
   * `/` → Website
   * `/api` → FastAPI
 
----
 
 ### **Application Workloads**
 
@@ -106,7 +100,6 @@ Inside the cluster:
   * `/health` → liveness/readiness checks
   * `/metrics` → Prometheus metrics
 
----
 
 ### **IAM Roles & State Management**
 
@@ -122,15 +115,13 @@ Inside the cluster:
   * Stored in **Amazon S3**
   * Locked using **DynamoDB**
 
-👉 Ensures **secure access control and consistent infrastructure state**
+ Ensures **secure access control and consistent infrastructure state**
 
----
 
 ## **4. Observability & Monitoring Layer**
 
 This layer provides **complete visibility into system behavior**.
 
----
 
 ### **Monitoring Components**
 
@@ -142,7 +133,6 @@ This layer provides **complete visibility into system behavior**.
   * Kubernetes resources
 * Stores time-series data
 
----
 
 #### **Grafana**
 
@@ -154,21 +144,18 @@ This layer provides **complete visibility into system behavior**.
   * Latency (P95, P99)
   * CPU and memory usage
 
----
 
 #### **Alertmanager**
 
 * Receives alerts from Prometheus
 * Sends notifications via **email**
 
----
 
 #### **Blackbox Exporter**
 
 * Monitors external availability of the website
 * Simulates real user access
 
----
 
 ### **Custom Monitoring Resources**
 
@@ -176,7 +163,6 @@ This layer provides **complete visibility into system behavior**.
 * **PrometheusRule** → defines alert conditions
 * **Probe** → monitors website uptime
 
----
 
 ## **End-to-End Flow (Simplified)**
 
@@ -189,7 +175,6 @@ This layer provides **complete visibility into system behavior**.
 5. Grafana visualizes data
 6. Alerts triggered via Alertmanager if thresholds exceed
 
----
 
 ### **Architecture Summary**
 
