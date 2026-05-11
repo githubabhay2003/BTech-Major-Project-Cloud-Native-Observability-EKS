@@ -1,7 +1,5 @@
 # Architecture Overview
 
-### **Architecture Diagram**
-
 <p align="center">
   <img src="https://raw.githubusercontent.com/githubabhay2003/BTech-Major-Project-Cloud-Native-Observability-EKS/main/docs/images/architecture-image.png" width="100%"><br>
   <b>Figure:</b> <i>End-to-End Architecture of the Cloud-Native Observability Platform on Amazon EKS</i>
