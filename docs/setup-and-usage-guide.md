@@ -1,570 +1,151 @@
-# A Comprehensive Execution and Observability Guide for a Cloud-Native Application on AWS EKS Using Terraform, Kubernetes, and CI/CD Pipelines
+# Setup & Operations Guide
 
-## Abstract
+Cloud-Native Observability Platform · Amazon EKS · Terraform · GitHub Actions
 
-This document presents a complete, reproducible guide for deploying, validating, and decommissioning a cloud-native application on Amazon Elastic Kubernetes Service (EKS). It integrates modern DevOps and cloud engineering practices, including Infrastructure as Code (Terraform), containerization (Docker), Kubernetes orchestration, and continuous integration/continuous deployment (CI/CD) via GitHub Actions.
-
-The guide systematically walks users through environment setup on a Windows system, AWS account configuration, and the provisioning of core cloud infrastructure such as virtual networks, IAM roles, EKS clusters, and container registries. It further details the deployment of application workloads using Helm, alongside a comprehensive observability stack consisting of Prometheus, Grafana, Alertmanager, and Blackbox Exporter for monitoring, visualization, and alerting.
-
-A key contribution of this document is its emphasis on operational validation, including metrics verification, dashboard analysis, and failure simulation to demonstrate alerting mechanisms. Additionally, it provides a structured teardown process to safely remove all resources, minimizing unnecessary cloud costs.
-
-Designed for both academic and practical use, this guide enables users to understand and implement a full lifecycle cloud-native system, bridging theoretical concepts with real-world deployment and observability practices in modern distributed systems.
-
----
-# 🧩 Section 1: Prerequisites
-
-This section ensures your system is fully ready before running the project.
-Follow every step carefully and verify each tool.
+> **Cost warning:** This project provisions billable AWS infrastructure (EKS control plane ~$0.10/hr, EC2 nodes, NAT Gateway, ELB). Run only for active testing and destroy immediately after. See [Teardown](#4-teardown) before starting.
 
 ---
 
-# 1. System Requirements
+## Table of Contents
 
-### ✅ Operating System
-
-* Windows 10 or Windows 11 (64-bit)
-
-### ✅ Terminal
-
-* Use **Git Bash** (recommended)
-
-  * Comes with Git installation
-
-### ✅ Code Editor (Optional)
-
-* Recommended: **Zed Editor**
-* You can also use:
-
-  * VS Code
-  * Notepad++
+1. [Prerequisites](#1-prerequisites)
+2. [Provisioning](#2-provisioning)
+3. [Verification & Validation](#3-verification--validation)
+4. [Teardown](#4-teardown)
 
 ---
 
-# 2. Required Tools & Installations
+## 1. Prerequisites
 
-Install each tool **one by one** and verify after installation.
+### 1.1 System Requirements
 
----
+- OS: Windows 10/11 64-bit
+- Terminal: Git Bash (bundled with Git)
 
-## 🔹 2.1 Git
+### 1.2 Required Tooling
 
-**What it is:**
-Used to download (clone) the project from GitHub.
+Install and verify each tool before proceeding.
 
-**Download:**
-👉 [https://git-scm.com/download/win](https://git-scm.com/download/win)
+| Tool | Version | Install |
+|---|---|---|
+| Git | 2.x+ | https://git-scm.com/download/win |
+| AWS CLI | 2.x | https://aws.amazon.com/cli/ |
+| kubectl | latest stable | https://kubernetes.io/docs/tasks/tools/install-kubectl-windows/ |
+| Terraform | 1.x+ | https://developer.hashicorp.com/terraform/downloads |
+| Helm | 3.x+ | https://helm.sh/docs/intro/install/ |
+| Docker Desktop | latest | https://www.docker.com/products/docker-desktop/ |
+| eksctl | latest | https://eksctl.io/installation/ |
 
-**Installation Steps:**
+For `kubectl`, `terraform`, `helm`, and `eksctl`: download the binary, place it in a dedicated directory (e.g. `C:\tools\`), and add that directory to your system `PATH`.
 
-1. Run the installer
-2. Keep all default settings
-3. Finish installation
+Docker Desktop requires WSL 2. Enable it when prompted during installation and restart if required.
 
-**Verify (Git Bash):**
-
+**Verify all tools:**
 ```bash
 git --version
-```
-
-✅ Expected output:
-
-```
-git version 2.x.x
-```
-
----
-
-## 🔹 2.2 AWS CLI
-
-**What it is:**
-Lets your computer communicate with AWS (create resources, manage EKS, etc.)
-
-**Download:**
-👉 [https://aws.amazon.com/cli/](https://aws.amazon.com/cli/)
-
-**Installation Steps:**
-
-1. Download Windows installer (.msi)
-2. Run installer → Next → Finish
-
-**Verify:**
-
-```bash
 aws --version
-```
-
-✅ Expected:
-
-```
-aws-cli/2.x.x Python/3.x ...
-```
-
----
-
-## 🔹 2.3 kubectl
-
-**What it is:**
-Command-line tool to control Kubernetes (EKS cluster).
-
-**Download:**
-👉 [https://kubernetes.io/docs/tasks/tools/install-kubectl-windows/](https://kubernetes.io/docs/tasks/tools/install-kubectl-windows/)
-
-**Easy Install (Recommended):**
-
-1. Download `kubectl.exe`
-2. Place it in:
-
-```
-C:\kubectl\
-```
-
-3. Add this folder to **Environment Variables → PATH**
-
-**Verify:**
-
-```bash
 kubectl version --client
-```
-
----
-
-## 🔹 2.4 eksctl
-
-**What it is:**
-CLI tool for managing EKS clusters (used indirectly in project).
-
-**Download:**
-👉 [https://eksctl.io/installation/](https://eksctl.io/installation/)
-
-**Installation (Windows):**
-
-1. Download `.zip`
-2. Extract `eksctl.exe`
-3. Place in:
-
-```
-C:\eksctl\
-```
-
-4. Add to PATH
-
-**Verify:**
-
-```bash
+terraform -version
+helm version
+docker --version
 eksctl version
 ```
 
----
+### 1.3 AWS Account & CLI Configuration
 
-## 🔹 2.5 Docker Desktop
+#### IAM Setup
 
-**What it is:**
-Used to build and run containers (FastAPI + website).
+1. Create an IAM user (`eks-admin`) with programmatic access.
+2. Attach `AdministratorAccess` policy.
 
-**Download:**
-👉 [https://www.docker.com/products/docker-desktop/](https://www.docker.com/products/docker-desktop/)
+> **Note:** `AdministratorAccess` is used here for project simplicity. Scope permissions appropriately for any non-isolated environment.
 
-**Installation Steps:**
+3. Generate and download Access Key credentials.
 
-1. Install Docker Desktop
-2. Enable **WSL 2** when prompted
-3. Restart system if required
-
-**Verify:**
-
-```bash
-docker --version
-```
-
-Also check:
-
-```bash
-docker ps
-```
-
-✅ Should not give errors
-
----
-
-## 🔹 2.6 Terraform
-
-**What it is:**
-Used to create AWS infrastructure automatically.
-
-**Download:**
-👉 [https://developer.hashicorp.com/terraform/downloads](https://developer.hashicorp.com/terraform/downloads)
-
-**Installation Steps:**
-
-1. Download Windows zip
-2. Extract `terraform.exe`
-3. Place in:
-
-```
-C:\terraform\
-```
-
-4. Add to PATH
-
-**Verify:**
-
-```bash
-terraform -version
-```
-
----
-
-## 🔹 2.7 Helm
-
-**What it is:**
-Package manager for Kubernetes (used to deploy apps and monitoring).
-
-**Download:**
-👉 [https://helm.sh/docs/intro/install/](https://helm.sh/docs/intro/install/)
-
-**Installation (Windows):**
-
-1. Download zip
-2. Extract `helm.exe`
-3. Place in:
-
-```
-C:\helm\
-```
-
-4. Add to PATH
-
-**Verify:**
-
-```bash
-helm version
-```
-
----
-
-# 3. AWS Account Setup
-
----
-
-## 🔹 3.1 Create AWS Account
-
-👉 [https://aws.amazon.com/](https://aws.amazon.com/)
-
-* Sign up with email
-* Add billing details
-* Choose **Basic (Free Tier)**
-
----
-
-## 🔹 3.2 Create IAM User
-
-1. Go to **IAM Dashboard**
-2. Click **Users → Create User**
-3. Username:
-
-```
-eks-admin
-```
-
-4. Enable:
-   ✅ Programmatic access
-
----
-
-## 🔹 3.3 Attach Permissions
-
-Attach this policy:
-
-```
-AdministratorAccess
-```
-
-⚠️ This is for learning purposes only.
-
----
-
-## 🔹 3.4 Create Access Keys
-
-After user creation:
-
-* Download or copy:
-
-  * Access Key ID
-  * Secret Access Key
-
----
-
-## 🔹 3.5 Configure AWS CLI
-
-Run in Git Bash:
+#### Configure CLI
 
 ```bash
 aws configure
 ```
 
-Enter:
+Enter your Access Key ID, Secret Access Key, region (`us-east-1`), and output format (`json`).
 
-```
-AWS Access Key ID: <your key>
-AWS Secret Access Key: <your secret>
-Default region name: us-east-1
-Default output format: json
-```
-
----
-
-## 🔹 3.6 Verify AWS Setup
-
+**Verify:**
 ```bash
 aws sts get-caller-identity
 ```
 
-✅ Expected: JSON output with your account info
+Expected: JSON response with your account ID and user ARN.
 
----
-
-# 4. GitHub Setup
-
----
-
-## 🔹 4.1 Install GitHub (Already done via Git)
-
----
-
-## 🔹 4.2 Clone Repository
+### 1.4 Repository Setup
 
 ```bash
 git clone https://github.com/githubabhay2003/BTech-Major-Project-Cloud-Native-Observability-EKS.git
-```
-
-```bash
 cd BTech-Major-Project-Cloud-Native-Observability-EKS
 ```
 
----
+#### GitHub Actions
 
-## 🔹 4.3 GitHub Actions Setup
-
-### Important: Enable Actions
-
-1. Open repo on GitHub
-2. Go to **Actions tab**
-3. Click:
-
-```
-Enable workflows
-```
+- Go to your fork's **Settings → Actions → General** and confirm workflows are enabled.
+- No GitHub secrets are required — this project uses AWS OIDC federation for CI/CD authentication.
 
 ---
 
-## 🔹 4.4 Required Permissions
+## 2. Provisioning
 
-Ensure:
+Follow steps in order. Do not skip ahead.
 
-* Repository is **not restricted**
-* Actions are allowed to run
+### Step 1 — Infrastructure Layer
 
-Settings → Actions → General:
-
-* Allow all actions
-
----
-
-## 🔹 4.5 No Secrets Needed
-
-✅ This project uses:
-
-* AWS OIDC (already configured in Terraform)
-
-So:
-👉 No GitHub secrets required
-
----
-
-# 5. ⚠️ AWS Cost Warning (IMPORTANT)
-
-This project uses **real AWS infrastructure**.
-
-### ❗ Not Fully Free Tier
-
-These services may incur charges:
-
-| Service             | Cost Risk                               |
-| ------------------- | --------------------------------------- |
-| EKS Cluster         | ~$0.10/hour                             |
-| EC2 Nodes           | Charged per instance                    |
-| NAT Gateway         | Expensive (~$30+/month if left running) |
-| Load Balancer (ELB) | Charged hourly                          |
-| Data Transfer       | Additional charges                      |
-
----
-
-## 🚨 Key Advice
-
-* Run the project only for testing
-* **Destroy everything after use** (you will do this later)
-* Do NOT leave resources running overnight
-
----
-
-## 💡 Estimated Cost (Short Usage)
-
-* 1–2 hours usage → small cost (~$1–$3)
-* Long-running → can become expensive
-
----
-
-## ✅ Best Practice
-
-After testing:
-👉 Always run the **Destroy Guide**
-
----
-# 🚀 Section 2: Project Setup (Rebuild Guide)
-
-This section will **build the entire system from scratch** on AWS.
-
-Follow each step **in exact order**. Do not skip anything.
-
----
-
-# 🔷 STEP 1: Provision Infrastructure (Terraform – Infra Layer)
-
-This creates:
-
-* VPC (network)
-* EKS cluster
-* IAM roles
-* ECR (container registry)
-* Bastion host
-
----
-
-## 📂 Navigate to Infra Directory
-
-Open **Git Bash**:
+Provisions: VPC, subnets, NAT Gateway, EKS cluster, managed node group, ECR repositories, bastion host, and IAM roles.
 
 ```bash
-cd BTech-Major-Project-Cloud-Native-Observability-EKS/terraform/infra
-```
+cd terraform/infra
 
----
-
-## ⚙️ Initialize Terraform
-
-```bash
 terraform init
-```
-
-✅ Expected:
-
-* Providers downloaded
-* Backend configured (S3)
-
----
-
-## 🔍 Validate Configuration
-
-```bash
 terraform validate
-```
-
-✅ Expected:
-
-```bash
-Success! The configuration is valid.
-```
-
----
-
-## 📊 Preview Infrastructure
-
-```bash
 terraform plan
-```
-
-👉 This shows what AWS resources will be created
-
----
-
-## 🚀 Apply (Create Infrastructure)
-
-```bash
 terraform apply -auto-approve
 ```
 
-⏳ This may take **10–20 minutes**
+> Takes 10–20 minutes. The EKS control plane provisioning is the longest step.
 
----
-
-## ✅ Verify EKS Cluster
-
+**Verify cluster exists:**
 ```bash
-aws eks list-clusters
-```
-
-✅ Expected output:
-
-```bash
-eks-observability-cluster
+aws eks list-clusters --region us-east-1
+# Expected: "eks-observability-cluster"
 ```
 
 ---
 
-# 🔷 STEP 2: Configure Kubernetes Access
-
-This connects your local machine to the EKS cluster.
-
----
-
-## 🔗 Update kubeconfig
+### Step 2 — Cluster Access
 
 ```bash
-aws eks update-kubeconfig --region us-east-1 --name eks-observability-cluster
+aws eks update-kubeconfig \
+  --region us-east-1 \
+  --name eks-observability-cluster
 ```
 
----
-
-## ✅ Verify Cluster Access
-
+**Verify node readiness:**
 ```bash
 kubectl get nodes
-```
-
-⏳ Wait until nodes are ready
-
-✅ Expected:
-
-```bash
-STATUS: Ready
+# All nodes must show STATUS: Ready before proceeding
 ```
 
 ---
 
-# 🔷 STEP 3: Deploy Platform Layer (Terraform Apps)
+### Step 3 — Platform Layer (Apps)
 
-This installs:
+Provisions: NGINX Ingress Controller, kube-prometheus-stack (Prometheus, Grafana, Alertmanager), Blackbox Exporter, ServiceMonitors, PrometheusRules, Grafana dashboards, and cross-namespace ingress routing.
 
-* Ingress Controller
-* Prometheus + Grafana + Alertmanager
-* Blackbox exporter
-* Observability configs
-
----
-
-## 📂 Navigate to Apps Directory
+**Critical:** Install the observability stack and its CRDs before applying the full layer. This avoids `no matches for kind` errors on `ServiceMonitor` and `PrometheusRule` resources.
 
 ```bash
 cd ../apps
-```
 
----
+terraform init
 
-## ⚠️ IMPORTANT: Install Monitoring First
-
-Run this EXACT command:
-
-```bash
+# Stage 1 — install monitoring namespace and CRD-producing Helm releases first
 terraform apply \
   -target=module.observability.kubernetes_namespace_v1.monitoring \
   -target=module.observability.helm_release.kube_prometheus_stack \
@@ -572,720 +153,231 @@ terraform apply \
   -auto-approve
 ```
 
-⏳ Takes ~5–10 minutes
-
----
-
-## ✅ Verify CRDs (Critical Step)
-
+**Verify CRDs are registered before proceeding:**
 ```bash
 kubectl get crd | grep monitoring.coreos.com
+# Must include: prometheusrules, servicemonitors, probes, alertmanagers
 ```
 
-✅ Expected:
-
-* prometheusrules
-* servicemonitors
-* probes
-
----
-
-## 🚀 Apply Full Apps Layer
-
 ```bash
+# Stage 2 — apply remaining resources
 terraform apply -auto-approve
 ```
 
----
-
-## ✅ Verify Pods
-
+**Verify pods:**
 ```bash
 kubectl get pods -A
+# Expected running pods: ingress-nginx, prometheus, grafana, alertmanager, blackbox-exporter
 ```
-
-✅ You should see:
-
-* ingress-nginx
-* prometheus
-* grafana
-* alertmanager
 
 ---
 
-# 🔷 STEP 4: Verify Ingress Controller
+### Step 4 — Ingress Controller
 
 ```bash
 kubectl get svc -n ingress-nginx
 ```
 
-✅ Look for:
+Wait until `EXTERNAL-IP` shows an `*.amazonaws.com` hostname. This is your ELB URL — note it for use in subsequent steps.
 
-```bash
-EXTERNAL-IP: <something.amazonaws.com>
-```
-
-📌 This is your **ELB URL**
+> If `EXTERNAL-IP` shows `<pending>`, wait 2–5 minutes for AWS to provision the ELB.
 
 ---
 
-# 🔷 STEP 5: Deploy Applications (CI/CD)
+### Step 5 — Application Deployment (CI/CD)
 
-This step triggers:
-
-* Docker build
-* Push to ECR
-* Helm deployment to EKS
-
----
-
-## 🔁 Trigger GitHub Actions
+Trigger the GitHub Actions pipeline to build Docker images, push to ECR, and deploy via Helm:
 
 ```bash
-git commit --allow-empty -m "trigger deployment"
+git commit --allow-empty -m "trigger: deploy applications"
 git push
 ```
 
----
-
-## 🔍 Monitor Deployment
-
-1. Go to your GitHub repo
-2. Click **Actions tab**
-3. Open latest workflow
-
-✅ Wait until:
-
-```bash
-All steps = green ✔
-```
+Monitor the run under the **Actions** tab in your GitHub repository. All steps must complete with a green status before proceeding.
 
 ---
 
-# 🔷 STEP 6: Verify Application Deployment
-
-Run:
+### Step 6 — Confirm Application Deployment
 
 ```bash
-kubectl get pods
-kubectl get deployments
+kubectl get pods -n default
+kubectl get deployments -n default
 kubectl get ingress -A
 ```
 
----
-
-## ✅ Expected
-
-You should see:
-
-* fastapi-app running
-* website running
-* ingress resources created
+Expected: `fastapi-app` and `website` pods in `Running` state, ingress resources present.
 
 ---
 
-# 🔷 STEP 7: Access the Application
+## 3. Verification & Validation
 
----
-
-## 🌐 Get ELB URL
+### 3.1 System Health Check
 
 ```bash
-kubectl get svc -n ingress-nginx
+kubectl get nodes                  # all Ready
+kubectl get pods -A                # no CrashLoopBackOff or Pending
+kubectl get svc -A                 # LoadBalancer has EXTERNAL-IP
 ```
 
-Copy the **EXTERNAL-IP**
+### 3.2 Application Endpoints
 
----
+Replace `<ELB>` with the hostname from `kubectl get svc -n ingress-nginx`.
 
-## 🔗 Test URLs
+| URL | Expected Response |
+|---|---|
+| `http://<ELB>/` | Website homepage |
+| `http://<ELB>/api` | `{"message": "FastAPI Observability App"}` |
+| `http://<ELB>/grafana` | Grafana login/dashboard |
+| `http://<ELB>/prometheus` | Prometheus UI |
+| `http://<ELB>/alertmanager` | Alertmanager UI |
 
-Replace `<ELB>` with your value:
+**Quick curl validation:**
+```bash
+ELB=$(kubectl get svc -n ingress-nginx \
+  -o jsonpath='{.items[0].status.loadBalancer.ingress[0].hostname}')
 
-| Path                      | Service      |
-| ------------------------- | ------------ |
-| http://<ELB>/             | Website      |
-| http://<ELB>/api          | FastAPI      |
-| http://<ELB>/grafana      | Grafana      |
-| http://<ELB>/prometheus   | Prometheus   |
-| http://<ELB>/alertmanager | Alertmanager |
+curl -s http://$ELB/api
+curl -s -o /dev/null -w "%{http_code}" http://$ELB/
+curl -s -o /dev/null -w "%{http_code}" http://$ELB/grafana
+```
 
----
+### 3.3 Prometheus Targets
 
-## ✅ Expected Behavior
+Open `http://<ELB>/prometheus` → **Status → Targets**
 
-* Website loads homepage
-* `/api` returns JSON
-* Grafana dashboard opens
-* Prometheus UI loads
+Confirm:
+- `fastapi` target: `UP`
+- `kubernetes-*` targets: `UP`
+- `blackbox` probe for website: `UP`
 
----
+### 3.4 Grafana Dashboard
 
-# 🔷 STEP 8: Test Observability (VERY IMPORTANT)
+Open `http://<ELB>/grafana` → **Dashboards → FastAPI — Golden Signals**
 
----
+Expected panels: Request Rate (RPS), Error Rate (5xx), P95 Latency, P99 Latency, Container CPU, Container Memory.
 
-## 🔻 Simulate FastAPI Failure
+### 3.5 Alert Pipeline Validation
+
+**Test 1 — FastAPI failure:**
+```bash
+kubectl scale deployment fastapi-app --replicas=0 -n default
+```
+
+Wait ~60 seconds, then check `http://<ELB>/prometheus` → **Alerts**.
+
+Expected: `FastAPIDown` in `FIRING` state.
 
 ```bash
-kubectl scale deployment fastapi-app --replicas=0
+# Restore
+kubectl scale deployment fastapi-app --replicas=2 -n default
 ```
 
-⏳ Wait 30–60 seconds
+**Test 2 — Website failure:**
+```bash
+kubectl scale deployment website --replicas=0 -n default
+```
 
-👉 Check Prometheus alerts:
-
-* FastAPI should show alerts
-
----
-
-## 🔁 Restore FastAPI
+Wait ~60 seconds. Expected: `WebsiteDown` in `FIRING` state.
 
 ```bash
-kubectl scale deployment fastapi-app --replicas=2
+# Restore
+kubectl scale deployment website --replicas=2 -n default
 ```
+
+If SMTP is configured, email notifications will be sent to the configured address. Email delivery depends on Gmail App Password validity and is independent of the alerting pipeline itself.
+
+### 3.6 Common Issues
+
+| Symptom | Check |
+|---|---|
+| Pod in `CrashLoopBackOff` | `kubectl logs <pod> -n <namespace>` |
+| Pod in `Pending` | `kubectl describe pod <pod> -n <namespace>` (check events for scheduling/image pull errors) |
+| `EXTERNAL-IP` pending | Wait 2–5 min; confirm Ingress Controller pods are running |
+| `/api` or `/grafana` returning 503 | Check ExternalName proxy services: `kubectl get svc -n default` |
+| Prometheus targets down | Verify ServiceMonitor labels match `release: kube-prometheus-stack` |
 
 ---
 
-## 🔻 Simulate Website Failure
+## 4. Teardown
+
+> Run this immediately after testing to avoid ongoing charges.
+
+### Step 1 — Release AWS-Provisioned Resources
+
+Kubernetes LoadBalancer services and Ingress objects cause AWS to provision ELBs and ENIs that Terraform cannot remove while they remain active.
 
 ```bash
-kubectl scale deployment website --replicas=0
-```
-
-⏳ Wait 30–60 seconds
-
----
-
-## ✅ Expected Alert
-
-In Prometheus:
-
-```bash
-WebsiteDown → FIRING 🔴
-```
-
----
-
-## 🔁 Restore Website
-
-```bash
-kubectl scale deployment website --replicas=2
-```
-
----
-# ▶️ Section 3: Running the Project & Verification
-
-At this point, your system is deployed.
-This section helps you **confirm everything is working correctly** and understand how to interact with it.
-
----
-
-# 🔷 1. Quick Health Check (System Status)
-
-Run these commands in **Git Bash**:
-
-```bash id="h0j2cf"
-kubectl get nodes
-kubectl get pods -A
-kubectl get svc -A
-```
-
----
-
-## ✅ What You Should See
-
-### Nodes
-
-* Status: `Ready`
-
-### Pods
-
-* Running pods for:
-
-  * `fastapi`
-  * `website`
-  * `ingress-nginx`
-  * `prometheus`
-  * `grafana`
-  * `alertmanager`
-
-### Services
-
-* One service with:
-
-  ```bash
-  TYPE: LoadBalancer
-  ```
-
----
-
-# 🔷 2. Access Your Application
-
----
-
-## 🌐 Get Public URL (ELB)
-
-```bash id="0hlg4m"
-kubectl get svc -n ingress-nginx
-```
-
-Copy the **EXTERNAL-IP** (looks like a long AWS URL)
-
----
-
-## 🔗 Open in Browser
-
-Use these URLs:
-
-| URL                         | What You See      |
-| --------------------------- | ----------------- |
-| `http://<ELB>/`             | Website homepage  |
-| `http://<ELB>/api`          | FastAPI response  |
-| `http://<ELB>/grafana`      | Grafana dashboard |
-| `http://<ELB>/prometheus`   | Prometheus UI     |
-| `http://<ELB>/alertmanager` | Alertmanager UI   |
-
----
-
-## ✅ Expected Results
-
-* Website loads with project info
-* `/api` returns JSON like:
-
-```json
-{ "message": "FastAPI Observability App" }
-```
-
-* Grafana opens (no login needed or uses default creds)
-* Prometheus shows targets and metrics
-* Alertmanager UI loads
-
----
-
-# 🔷 3. Verify Metrics Collection
-
----
-
-## 📊 Check Prometheus Targets
-
-1. Open:
-
-```bash id="p3u6o7"
-http://<ELB>/prometheus
-```
-
-2. Click:
-
-```bash
-Status → Targets
-```
-
----
-
-## ✅ Expected
-
-* FastAPI target = **UP**
-* Kubernetes targets = **UP**
-
----
-
-# 🔷 4. View Grafana Dashboard
-
----
-
-## 📈 Open Grafana
-
-```bash id="1u6yfe"
-http://<ELB>/grafana
-```
-
----
-
-## 🔍 Navigate
-
-* Go to **Dashboards**
-* Open:
-
-```bash
-FastAPI – Golden Signals
-```
-
----
-
-## ✅ You Should See
-
-* Request rate (RPS)
-* Error rate
-* Latency (P95, P99)
-* CPU usage
-* Memory usage
-
----
-
-# 🔷 5. Test Alerts (System Validation)
-
-This confirms observability is working correctly.
-
----
-
-## 🔻 Test 1: FastAPI Down
-
-```bash id="otn4n2"
-kubectl scale deployment fastapi-app --replicas=0
-```
-
-⏳ Wait ~1 minute
-
----
-
-### 🔍 Check Alert
-
-Open:
-
-```bash id="3x0o2o"
-http://<ELB>/prometheus
-```
-
-Go to:
-
-```bash
-Alerts
-```
-
----
-
-### ✅ Expected
-
-* Alert:
-
-```bash
-FastAPIDown → FIRING 🔴
-```
-
----
-
-## 🔁 Restore FastAPI
-
-```bash id="xq1nmk"
-kubectl scale deployment fastapi-app --replicas=2
-```
-
----
-
-## 🔻 Test 2: Website Down
-
-```bash id="r3c1s5"
-kubectl scale deployment website --replicas=0
-```
-
-⏳ Wait ~1 minute
-
----
-
-### ✅ Expected
-
-```bash
-WebsiteDown → FIRING 🔴
-```
-
----
-
-## 🔁 Restore Website
-
-```bash id="p9k3bz"
-kubectl scale deployment website --replicas=2
-```
-
----
-
-# 🔷 6. Email Alert Verification
-
-If SMTP works:
-
-* Alerts will be sent to:
-
-```bash
-youremail@gmail.com
-```
-
----
-
-## ⚠️ Note
-
-* Email may take time or fail depending on Gmail restrictions
-* This does not affect system functionality
-
----
-
-# 🔷 7. Common Checks (If Something Looks Wrong)
-
----
-
-## ❌ Pods Not Running
-
-```bash id="s8b9kz"
-kubectl get pods -A
-```
-
-👉 Look for:
-
-* `CrashLoopBackOff`
-* `Pending`
-
----
-
-## ❌ No External IP
-
-```bash id="p2k7df"
-kubectl get svc -n ingress-nginx
-```
-
-👉 If `<pending>`:
-
-* Wait 2–5 minutes
-* AWS is provisioning ELB
-
----
-
-## ❌ API Not Working
-
-```bash id="zt4y6m"
-kubectl get pods
-```
-
-👉 Ensure:
-
-* fastapi pod is running
-
----
-# 🧹 Section 4: Teardown (Destroy Guide)
-
-This section will **completely remove all AWS resources** created by the project.
-
-⚠️ Follow steps **exactly in order** to avoid:
-
-* Stuck AWS resources
-* Unexpected costs
-* Terraform errors
-
----
-
-# 🔷 STEP 1: Delete Kubernetes LoadBalancers & Ingress
-
-## 🎯 Why this is important
-
-Kubernetes creates AWS resources automatically:
-
-* ELB (Load Balancer)
-* ENI (Network Interfaces)
-* Security Groups
-
-If not removed first → Terraform destroy may fail.
-
----
-
-## 🧹 Run Cleanup Commands
-
-```bash id="p6o0kp"
 kubectl delete ingress --all -A
-```
-
-```bash id="d2o4b7"
 kubectl delete svc -A --field-selector spec.type=LoadBalancer
-```
 
----
-
-## ⏳ WAIT (VERY IMPORTANT)
-
-```bash id="zq5k8x"
+# Allow AWS time to release ELBs and ENIs
 sleep 60
 ```
 
-👉 This gives AWS time to delete:
-
-* Load balancers
-* Network interfaces
-
----
-
-## ✅ Verify Cleanup
-
-```bash id="j4x7zn"
+**Verify release:**
+```bash
 kubectl get ingress -A
-```
-
-```bash id="k1v9rm"
 kubectl get svc -A | grep LoadBalancer
-```
+# Both should return: No resources found
 
----
-
-### ✅ Expected Output
-
-```bash id="f8c2qy"
-No resources found
-```
-
----
-
-# 🔷 STEP 2: Verify AWS Load Balancers (CRITICAL)
-
-Run:
-
-```bash id="z9h2xc"
 aws elb describe-load-balancers --region us-east-1
+# Expected: empty LoadBalancerDescriptions
 ```
 
----
-
-## ✅ Expected
-
-* Empty or no active load balancers
+If any ELB is still listed, wait 2–3 minutes and re-check before proceeding.
 
 ---
 
-## ❗ If Load Balancer Still Exists
+### Step 2 — Destroy Apps Layer
 
-👉 Wait another 2–3 minutes and check again
-
----
-
-# 🔷 STEP 3: Destroy Apps Layer (Terraform)
-
-This removes:
-
-* Prometheus
-* Grafana
-* Alertmanager
-* Ingress controller
-* All Kubernetes resources
-
----
-
-## 📂 Navigate to Apps Directory
-
-```bash id="1xv7bq"
-cd BTech-Major-Project-Cloud-Native-Observability-EKS/terraform/apps
-```
-
----
-
-## 💥 Destroy Apps
-
-```bash id="t6m4wp"
+```bash
+cd terraform/apps
 terraform destroy -auto-approve
 ```
 
-⏳ Takes ~5–10 minutes
+> Takes 5–10 minutes.
 
 ---
 
-# 🔷 STEP 4: Destroy Infrastructure Layer
+### Step 3 — Destroy Infrastructure Layer
 
-This removes:
-
-* EKS cluster
-* EC2 nodes
-* VPC, subnets
-* NAT Gateway
-* IAM roles
-* ECR
-
----
-
-## 📂 Navigate to Infra Directory
-
-```bash id="c3k9yt"
+```bash
 cd ../infra
-```
-
----
-
-## 💥 Destroy Infrastructure
-
-```bash id="b8p2ns"
 terraform destroy -auto-approve
 ```
 
-⏳ Takes ~10–20 minutes
+> Takes 10–20 minutes.
 
 ---
 
-# 🔷 STEP 5: Final AWS Verification
+### Step 4 — Final AWS Verification
 
-Make sure **nothing is left running**.
+Confirm no billable resources remain:
 
----
-
-## 🔍 Check VPCs
-
-```bash id="u7f3hj"
-aws ec2 describe-vpcs
+```bash
+aws eks list-clusters --region us-east-1
+aws ec2 describe-instances --region us-east-1 \
+  --filters "Name=instance-state-name,Values=running"
+aws elb describe-load-balancers --region us-east-1
+aws ec2 describe-nat-gateways --region us-east-1 \
+  --filter "Name=state,Values=available"
+aws ec2 describe-vpcs --region us-east-1 \
+  --filters "Name=isDefault,Values=false"
 ```
 
----
-
-## 🔍 Check Subnets
-
-```bash id="r2y6kd"
-aws ec2 describe-subnets
-```
+All queries should return empty or no project-related resources. If anything persists, check the AWS Console under EC2 → Load Balancers, EC2 → Network Interfaces, and VPC → NAT Gateways.
 
 ---
 
-## 🔍 Check Load Balancers
+## Reference
 
-```bash id="n5m1qp"
-aws elb describe-load-balancers
-```
+| Directory | Purpose |
+|---|---|
+| `terraform/infra/` | AWS infrastructure (VPC, EKS, ECR, IAM) |
+| `terraform/apps/` | Kubernetes platform layer (observability, ingress, RBAC) |
+| `helm/fastapi/` | FastAPI application Helm chart |
+| `helm/website/` | Static website Helm chart |
+| `apps/fastapi/` | FastAPI application source |
+| `apps/website/` | Static website source |
 
----
-
-## 🔍 Check Network Interfaces
-
-```bash id="v8z4lt"
-aws ec2 describe-network-interfaces
-```
-
----
-
-## ✅ Expected Result
-
-* No resources related to this project
-* Clean AWS account
-
----
-
-# ⚠️ If Something Still Exists
-
-* Wait a few minutes (AWS cleanup delay)
-* Re-run the commands
-* Check AWS Console manually:
-
-  * EC2 → Load Balancers
-  * EC2 → Network Interfaces
-
----
-
-# 💡 Final Safety Check
-
-Make sure:
-
-* No EKS cluster
-* No EC2 instances
-* No NAT Gateway
-* No Load Balancer
-
----
-
-# ✅ Teardown Complete
-
-You have successfully:
-
-* Removed all Kubernetes resources
-* Deleted all AWS infrastructure
-* Prevented ongoing costs
-
----
+Related: `docs/architecture.md` · `docs/challenges-and-learnings.md`
