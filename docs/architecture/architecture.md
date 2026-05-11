@@ -9,7 +9,6 @@ The platform is organized into four distinct layers: external access, CI/CD auto
   <b>Figure:</b> <i>End-to-End Architecture of the Cloud-Native Observability Platform on Amazon EKS</i>
 </p>
 
----
 
 ## Layers
 
@@ -19,7 +18,6 @@ Users access the platform via browser through the public internet. Requests ente
 
 Developers interact via GitHub — a push to `main` triggers the CI/CD pipeline automatically.
 
----
 
 ### 2. CI/CD Layer
 
@@ -40,7 +38,6 @@ Developers interact via GitHub — a push to `main` triggers the CI/CD pipeline 
 4. Images pushed to ECR
 5. `helm upgrade --install` deploys both services to EKS
 
----
 
 ### 3. AWS Infrastructure Layer
 
@@ -84,7 +81,6 @@ Worker nodes run in private subnets with outbound internet access via NAT Gatewa
 | GitHub Actions Role | GitHub OIDC | ECR push, EKS deploy |
 | Bastion Role | EC2 bastion host | Cluster admin (kubectl) |
 
----
 
 ### 4. Observability Layer
 
@@ -130,7 +126,6 @@ Worker nodes run in private subnets with outbound internet access via NAT Gatewa
 | `FastAPIDown` | Available replicas | 0 for 30s |
 | `WebsiteDown` | Blackbox probe failure | 30s |
 
----
 
 ## End-to-End Request Flow
 
@@ -146,7 +141,6 @@ Browser
                                                                     └─▶ Email notification
 ```
 
----
 
 ## Repository Structure
 
@@ -164,7 +158,6 @@ Browser
 └── docs/               # Engineering documentation
 ```
 
----
 
 ## Design Decisions
 
@@ -177,6 +170,4 @@ Browser
 | ConfigMap-based dashboard provisioning | Grafana sidecar auto-discovers labeled ConfigMaps; no manual dashboard import required |
 | Commit SHA image tagging | Ensures immutable, traceable image versions; eliminates `latest`-tag non-determinism |
 
----
 
-*Related: [`docs/infrastructure.md`](infrastructure.md) · [`docs/observability.md`](observability.md) · [`docs/cicd.md`](cicd.md) · [`docs/setup-and-usage-guide.md`](setup-and-usage-guide.md)*
