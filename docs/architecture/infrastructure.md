@@ -173,8 +173,6 @@ terraform/infra apply
                   └─▶ terraform/apps apply (stage 2: full apply)
 ```
 
-Teardown runs in reverse — see [Teardown](setup-and-usage-guide.md#4-teardown) for the required pre-destroy cleanup steps.
+Teardown runs in reverse — see [Teardown](docs/setup/setup-and-usage-guide.md) for the required pre-destroy cleanup steps.
 
----
 
-*Related: [`docs/architecture.md`](architecture.md) · [`docs/kubernetes.md`](kubernetes.md) · [`docs/setup-and-usage-guide.md`](setup-and-usage-guide.md)*
