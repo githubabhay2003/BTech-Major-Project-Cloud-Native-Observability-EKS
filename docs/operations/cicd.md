@@ -1,141 +1,194 @@
-##  CI/CD Pipeline
+# CI/CD Pipeline
 
-### **Overview**
+The pipeline runs on GitHub Actions and triggers on every push to `main`. It builds both application images, pushes them to ECR, and deploys to EKS via Helm — no manual steps required after a push.
 
-The project uses a **CI/CD pipeline (Continuous Integration and Continuous Deployment)** implemented with **GitHub Actions** to automate the entire application deployment process.
 
-This pipeline ensures that every code change is:
+## Pipeline Overview
 
-* Automatically built
-* Tested (implicitly via build success)
-* Deployed to the Kubernetes cluster
+```
+push to main
+  └─▶ Checkout
+  └─▶ AWS authentication (OIDC)
+  └─▶ Build + tag Docker images (FastAPI, Website)
+  └─▶ Push images to ECR
+  └─▶ Update kubeconfig
+  └─▶ helm upgrade --install (FastAPI)
+  └─▶ helm upgrade --install (Website)
+```
 
-👉 This reduces manual effort and improves reliability.
 
----
+## Workflow File
 
-## **Key Components of the Pipeline**
+**Location:** `.github/workflows/deploy.yml`  
+**Trigger:** `push` to `main`
 
-| **Component**                               | **Role**                                     |
-| ------------------------------------------- | -------------------------------------------- |
-| **GitHub**                                  | Source code repository and trigger point     |
-| **GitHub Actions**                          | Executes the CI/CD workflow                  |
-| **Docker**                                  | Builds container images                      |
-| **Amazon ECR (Elastic Container Registry)** | Stores Docker images                         |
-| **Amazon EKS**                              | Runs the deployed applications               |
-| **Helm**                                    | Manages Kubernetes deployments               |
-| **OIDC (OpenID Connect)**                   | Secure authentication between GitHub and AWS |
+```yaml
+on:
+  push:
+    branches: [main]
 
----
+permissions:
+  id-token: write   # required for OIDC token issuance
+  contents: read
+```
 
-## **Pipeline Trigger**
 
-* The pipeline is triggered when:
+## Steps
 
-  * Code is pushed to the **main branch**
+### 1. AWS Authentication
 
-👉 This ensures continuous deployment of the latest changes
+Uses OIDC federation — no static AWS credentials are stored in GitHub secrets.
 
----
+```yaml
+- name: Configure AWS credentials
+  uses: aws-actions/configure-aws-credentials@v4
+  with:
+    role-to-assume: arn:aws:iam::<ACCOUNT_ID>:role/eks-observability-github-actions-role
+    aws-region: us-east-1
+```
 
-## **Step-by-Step Pipeline Workflow**
+GitHub issues a short-lived OIDC token per workflow run. AWS STS exchanges it for temporary credentials scoped to the GitHub Actions IAM role. The trust policy restricts assumption to this repository only.
 
-### **1. Code Checkout**
+**Validation:**
+```bash
+aws sts get-caller-identity
+# ARN must match the GitHub Actions role, not an IAM user
+```
 
-* GitHub Actions fetches the latest code from the repository
+### 2. ECR Authentication
 
----
+```yaml
+- name: Login to ECR
+  uses: aws-actions/amazon-ecr-login@v2
+```
 
-### **2. AWS Authentication (OIDC)**
+This action retrieves a temporary ECR token and configures Docker. The token is valid for 12 hours — sufficient for any single workflow run.
 
-* Uses **OpenID Connect (OIDC)** to securely assume an AWS IAM role
-* No hardcoded credentials are required
+### 3. Build & Push Images
 
-👉 Enhances security and follows best practices
+Both images are built in parallel, tagged with the commit SHA for immutability:
 
----
+```yaml
+env:
+  ECR_REGISTRY: <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com
+  IMAGE_TAG: ${{ github.sha }}
 
-### **3. Docker Image Build**
+- name: Build and push FastAPI
+  run: |
+    docker build -t $ECR_REGISTRY/eks-observability-fastapi:$IMAGE_TAG ./apps/fastapi
+    docker push $ECR_REGISTRY/eks-observability-fastapi:$IMAGE_TAG
 
-Two images are built:
+- name: Build and push Website
+  run: |
+    docker build -t $ECR_REGISTRY/eks-observability-website:$IMAGE_TAG ./apps/website
+    docker push $ECR_REGISTRY/eks-observability-website:$IMAGE_TAG
+```
 
-* **FastAPI Application Image**
-* **Website Image**
+Using `$GITHUB_SHA` as the image tag ensures every deployment references a specific, immutable image. The `latest` tag is not used.
 
-Each image is:
+### 4. Cluster Access
 
-* Built using its respective Dockerfile
-* Tagged with the **commit SHA** (unique identifier)
+```yaml
+- name: Update kubeconfig
+  run: |
+    aws eks update-kubeconfig \
+      --region us-east-1 \
+      --name eks-observability-cluster
+```
 
----
+Requires `eks:DescribeCluster` on the GitHub Actions IAM role. The role must also be mapped in `aws-auth` to a Kubernetes RBAC group — managed by Terraform in `terraform/apps/aws-auth.tf`.
 
-### **4. Push Images to Amazon ECR**
+### 5. Helm Deployment
 
-* Images are pushed to:
+```yaml
+- name: Deploy FastAPI
+  run: |
+    helm upgrade --install fastapi-app ./helm/fastapi \
+      --namespace default \
+      --set image.repository=$ECR_REGISTRY/eks-observability-fastapi \
+      --set image.tag=$IMAGE_TAG
 
-  * Amazon Elastic Container Registry (ECR)
+- name: Deploy Website
+  run: |
+    helm upgrade --install website ./helm/website \
+      --namespace default \
+      --set image.repository=$ECR_REGISTRY/eks-observability-website \
+      --set image.tag=$IMAGE_TAG
+```
 
-👉 Makes images available for deployment in Kubernetes
+`helm upgrade --install` is idempotent — installs on first run, upgrades on subsequent runs. Kubernetes applies a rolling update by default, replacing pods incrementally with zero downtime.
 
----
 
-### **5. Connect to EKS Cluster**
 
-* The pipeline updates **kubeconfig** using AWS CLI
-* This allows GitHub Actions to interact with the Kubernetes cluster
+## IAM Requirements
 
----
+The GitHub Actions role requires the following permissions:
 
-### **6. Helm Deployment**
+```json
+{
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ecr:GetAuthorizationToken",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:InitiateLayerUpload",
+        "ecr:UploadLayerPart",
+        "ecr:CompleteLayerUpload",
+        "ecr:PutImage"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["eks:DescribeCluster"],
+      "Resource": "arn:aws:eks:us-east-1:<ACCOUNT_ID>:cluster/eks-observability-cluster"
+    }
+  ]
+}
+```
 
-* Applications are deployed using **Helm charts**
+RBAC mapping in `aws-auth` (managed by Terraform):
 
-* Commands used:
+```yaml
+- rolearn: arn:aws:iam::<ACCOUNT_ID>:role/eks-observability-github-actions-role
+  username: github-actions
+  groups:
+    - system:masters
+```
 
-  * `helm upgrade --install`
 
-* Dynamic values passed:
 
-  * Image repository
-  * Image tag (commit SHA)
+## Triggering a Deployment
 
-👉 Enables versioned and repeatable deployments
+Push any commit to `main`:
 
----
+```bash
+git push origin main
+```
 
-## **Deployment Strategy**
+To trigger without a code change:
 
-* Uses **rolling updates** (default Kubernetes behavior)
-* Ensures:
+```bash
+git commit --allow-empty -m "trigger: redeploy"
+git push origin main
+```
 
-  * Zero downtime
-  * Smooth updates
+Monitor the run under the **Actions** tab in the repository.
 
----
 
-## **Pipeline Flow Summary**
 
-1. Developer pushes code to GitHub
-2. GitHub Actions pipeline starts
-3. Docker images are built
-4. Images are pushed to ECR
-5. Helm deploys applications to EKS
-6. Updated application becomes live
+## Debugging Pipeline Failures
 
----
+| Failure | Likely Cause | Check |
+|---|---|---|
+| OIDC authentication failed | Trust policy mismatch or missing `id-token: write` permission | Verify `role-to-assume` ARN and workflow permissions block |
+| ECR push denied (403) | Node role missing ECR push permissions | Check IAM policy attached to GitHub Actions role |
+| `helm: command not found` | Helm not installed on runner | Add `helm` installation step or use a custom runner image |
+| `helm upgrade` failed — chart path not found | Incorrect path in workflow | Confirm path is relative to repo root: `./helm/fastapi` |
+| `kubectl`: Unauthorized | `aws-auth` missing GitHub Actions role mapping | Check `kubectl describe configmap aws-auth -n kube-system` |
+| Pods in `ImagePullBackOff` | Wrong image URI or missing ECR read permission on node role | Check `kubectl describe pod <pod> -n default` |
 
-### **Key Advantages**
+Always expand the full step log in the Actions UI — the meaningful error is typically several lines above the `Error:` summary line.
 
-* 🔄 **Automation** → No manual deployment required
-* 🔐 **Security** → Uses OIDC instead of static credentials
-* 📦 **Version Control** → Image tagging with commit SHA
-* ⚡ **Fast Deployment** → Changes go live quickly
-* 🔁 **Consistency** → Same process for every deployment
-
----
-
-### **In Simple Words**
-
-> The CI/CD pipeline automatically takes your code, turns it into a running application, and deploys it to the cloud every time you make a change.
-
----
